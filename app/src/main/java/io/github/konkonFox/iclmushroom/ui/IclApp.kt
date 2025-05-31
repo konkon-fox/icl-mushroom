@@ -1,0 +1,101 @@
+package io.github.konkonFox.iclmushroom.ui
+
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import io.github.konkonFox.iclmushroom.IclViewModel
+import io.github.konkonFox.iclmushroom.ui.screen.HistoriesScreen
+import io.github.konkonFox.iclmushroom.ui.screen.HomeScreen
+import io.github.konkonFox.iclmushroom.ui.screen.UploadScreen
+import io.github.konkonFox.iclmushroom.ui.theme.ICLMushroomTheme
+
+
+enum class IclScreen {
+    Home,
+    Upload,
+    Histories
+}
+
+@Composable
+fun IclApp(
+    isMushroom: Boolean = false,
+    iclViewModel: IclViewModel = viewModel(
+        factory = IclViewModel.Factory
+    ),
+    navController: NavHostController = rememberNavController(),
+) {
+    LaunchedEffect(Unit) {
+        iclViewModel.setIsMushroom(isMushroom)
+    }
+
+    Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = IclScreen.Home.name,
+        ) {
+            composable(
+                route = IclScreen.Home.name,
+                enterTransition = { slideInHorizontally { -it } },
+                exitTransition = { slideOutHorizontally { -it } }
+            ) {
+                HomeScreen(
+                    uiState = iclViewModel.uiState.collectAsState().value,
+                    viewModel = iclViewModel,
+                    navController = navController,
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
+            composable(
+                route = IclScreen.Upload.name,
+                exitTransition = { slideOutHorizontally { it } }
+            ) {
+                UploadScreen(
+                    uiState = iclViewModel.uiState.collectAsState().value,
+                    viewModel = iclViewModel,
+                    navController = navController,
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
+            composable(
+                route = IclScreen.Histories.name,
+                enterTransition = { slideInHorizontally { it } },
+                exitTransition = { slideOutHorizontally { it } }
+            ) {
+                HistoriesScreen(
+                    uiState = iclViewModel.uiState.collectAsState().value,
+                    viewModel = iclViewModel,
+                    navController = navController,
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
+        }
+    }
+
+}
+
+@Preview(showBackground = true)
+@Composable
+fun IclPreview() {
+    ICLMushroomTheme {
+        IclApp()
+    }
+}

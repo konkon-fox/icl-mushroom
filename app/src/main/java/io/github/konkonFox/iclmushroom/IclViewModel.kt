@@ -1,0 +1,475 @@
+package io.github.konkonFox.iclmushroom
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import android.media.ExifInterface
+import android.net.Uri
+import android.util.Log
+import androidx.annotation.StringRes
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.navigation.NavController
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.size.Precision
+import io.github.konkonFox.iclmushroom.data.IclRepository
+import io.github.konkonFox.iclmushroom.data.LocalItem
+import io.github.konkonFox.iclmushroom.ui.IclScreen
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+
+enum class UploaderName {
+    Imgur,
+    Catbox,
+    Litterbox
+}
+
+data class LitterboxHourOption(val label: String, val hour: Int)
+
+enum class LocalClickOption {
+    Insert,
+    Copy
+}
+
+data class DialogOptions(
+    val isOpen: Boolean = false,
+    @StringRes val title: Int = R.string.dummy,
+    @StringRes val body: Int = R.string.dummy,
+    val dynamicBody: String? = null,
+)
+
+data class NowLoadingOptions(
+    val isOpen: Boolean = false,
+    @StringRes val title: Int = R.string.dummy,
+)
+
+data class IclUiState(
+    val selectedUploader: UploaderName = UploaderName.Imgur,
+    val selectedFiles: List<Uri> = emptyList(),
+    val userClientId: String = "",
+    val isDeleteExif: Boolean = false,
+    val nowLoadingOption: NowLoadingOptions = NowLoadingOptions(),
+    val dialogOptions: DialogOptions = DialogOptions(),
+    val localItems: List<LocalItem> = emptyList(),
+    val localClickOption: LocalClickOption = LocalClickOption.Insert,
+    val isMushroom: Boolean = false,
+    val targetLocalItem: LocalItem? = null,
+)
+
+interface BaseIclViewModel {
+    val uiState: StateFlow<IclUiState>
+    fun updateSelectedUploader(uploader: UploaderName)
+    fun updateUserClientId(clientId: String)
+    fun updateLocalClickOption(option: LocalClickOption)
+    fun updateIsDeleteExif(checked: Boolean)
+    fun setIsMushroom(boolean: Boolean)
+    fun onImagesSelected(context: Context, uris: List<Uri>, navController: NavController)
+    fun openDialog(dialogOptions: DialogOptions)
+    fun closeDialog()
+    fun uploadImages(
+        context: Context,
+        navController: NavController,
+        reduceSize: Int?,
+        expiresHour: Int,
+        onResult: (List<String>) -> Unit,
+    )
+
+    fun deleteLocalItem(item: LocalItem)
+    fun deleteImgurItem(item: LocalItem)
+}
+
+class IclViewModel(
+    private val iclRepository: IclRepository,
+) : ViewModel(), BaseIclViewModel {
+
+    // viewModel内部
+    private val _uiState = MutableStateFlow(IclUiState())
+
+    // viewModel外部
+    override val uiState: StateFlow<IclUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            combine(
+                iclRepository.selectedUploader,
+                iclRepository.userClientId,
+                iclRepository.localClickOption,
+                iclRepository.isDeleteExif,
+            ) { uploader, clientId, option, checked ->
+                _uiState.update {
+                    it.copy(
+                        selectedUploader = UploaderName.valueOf(uploader),
+                        userClientId = clientId,
+                        localClickOption = LocalClickOption.valueOf(option),
+                        isDeleteExif = checked
+                    )
+                }
+            }.collect()
+        }
+        viewModelScope.launch {
+            iclRepository.getAllLocalItems()
+                .collect { items ->
+                    _uiState.update { it.copy(localItems = items) }
+                }
+        }
+    }
+
+
+    // アップローダー変更
+    override fun updateSelectedUploader(uploader: UploaderName) {
+        viewModelScope.launch {
+            iclRepository.updateSelectedUploader(uploader)
+        }
+    }
+
+    // ユーザーClient id変更
+    override fun updateUserClientId(clientId: String) {
+        viewModelScope.launch {
+            iclRepository.updateUserClientId(clientId)
+        }
+    }
+
+    // ローカル画像クリック動作変更
+    override fun updateLocalClickOption(option: LocalClickOption) {
+        viewModelScope.launch {
+            iclRepository.updateLocalClickOption(option)
+        }
+    }
+
+    // exif削除判定　変更
+    override fun updateIsDeleteExif(checked: Boolean) {
+        viewModelScope.launch {
+            iclRepository.updateIsDeleteExif(checked)
+        }
+    }
+
+    // マッシュルーム判別
+    override fun setIsMushroom(boolean: Boolean) {
+        _uiState.update {
+            it.copy(
+                isMushroom = boolean
+            )
+        }
+    }
+
+    // ダイアログ開く
+    override fun openDialog(dialogOptions: DialogOptions) {
+        _uiState.update {
+            it.copy(
+                dialogOptions = dialogOptions
+            )
+        }
+    }
+
+    // ダイアログ閉じる
+    override fun closeDialog() {
+        _uiState.update {
+            it.copy(
+                dialogOptions = DialogOptions()
+            )
+        }
+    }
+
+    // 画像選択
+    override fun onImagesSelected(context: Context, uris: List<Uri>, navController: NavController) {
+        if (uris.size > 6) {
+            openDialog(
+                DialogOptions(
+                    isOpen = true,
+                    title = R.string.dialog_title_upload_error,
+                    body = R.string.dialog_body_too_match,
+                    dynamicBody = null
+                )
+            )
+        } else if (uris.isNotEmpty()) {
+            _uiState.update { it.copy(selectedFiles = uris) }
+            navController.navigate(IclScreen.Upload.name)
+        }
+    }
+
+    // 画像アップロード
+    override fun uploadImages(
+        context: Context,
+        navController: NavController,
+        reduceSize: Int?,
+        expiresHour: Int,
+        onResult: (List<String>) -> Unit,
+    ) {
+        val urls = mutableListOf<String>()
+        viewModelScope.launch {
+            val uris: List<Uri> = _uiState.value.selectedFiles
+            val rawFiles: List<File> = if (reduceSize == null) {
+                uris.mapNotNull { uri -> uriToFile(context = context, uri = uri) }
+            } else {
+                resizeImages(
+                    context = context,
+                    uris = uris,
+                    maxSize = reduceSize,
+                )
+            }
+            val files: List<File> = if (_uiState.value.isDeleteExif) {
+                rawFiles.map { file ->
+                    val exif = ExifInterface(file.absolutePath)
+                    val exifTags = listOf(
+                        ExifInterface.TAG_MAKE,
+                        ExifInterface.TAG_MODEL,
+                        ExifInterface.TAG_DATETIME,
+                        ExifInterface.TAG_DATETIME_ORIGINAL,
+                        ExifInterface.TAG_DATETIME_DIGITIZED,
+                        ExifInterface.TAG_GPS_LATITUDE,
+                        ExifInterface.TAG_GPS_LONGITUDE,
+                        ExifInterface.TAG_GPS_ALTITUDE,
+                        ExifInterface.TAG_GPS_PROCESSING_METHOD,
+                        ExifInterface.TAG_USER_COMMENT,
+                        ExifInterface.TAG_SOFTWARE,
+                        ExifInterface.TAG_ARTIST,
+                        ExifInterface.TAG_COPYRIGHT,
+                        ExifInterface.TAG_IMAGE_DESCRIPTION
+                    )
+                    for (tag in exifTags) {
+                        exif.setAttribute(tag, null)
+                    }
+                    exif.saveAttributes()
+                    file
+                }
+            } else {
+                rawFiles
+            }
+
+            _uiState.update {
+                it.copy(
+                    nowLoadingOption = NowLoadingOptions(
+                        isOpen = true,
+                        title = R.string.now_loading_upload
+                    )
+                )
+            }
+            if (_uiState.value.selectedUploader == UploaderName.Imgur) {
+                val isOk: Boolean = iclRepository.checkImgurCredits()
+                if (!isOk) {
+                    _uiState.update {
+                        it.copy(
+                            dialogOptions = DialogOptions(
+                                isOpen = true,
+                                title = R.string.dialog_title_upload_error,
+                                body = R.string.dialog_body_imgur_api_error,
+                            ),
+                            nowLoadingOption = NowLoadingOptions()
+                        )
+                    }
+                    onResult(emptyList())
+                    return@launch
+                }
+            }
+            val result: Result<List<LocalItem>> =
+                iclRepository.uploadImages(files = files, expiresHour = expiresHour)
+            result.onSuccess { localItems ->
+                // 成功時処理
+                localItems.forEach { item ->
+                    iclRepository.insertLocalItem(item)
+                }
+                urls.addAll(localItems.map { it.link })
+                _uiState.update { it.copy(nowLoadingOption = NowLoadingOptions()) }
+                navController.popBackStack(IclScreen.Home.name, inclusive = false)
+                onResult(urls)
+            }.onFailure {
+                // 失敗時Dialog
+                Log.e("IclViewModel", "Upload failed: ${it.message}")
+                _uiState.update {
+                    it.copy(
+                        dialogOptions = DialogOptions(
+                            isOpen = true,
+                            title = R.string.dialog_title_upload_error,
+                            body = R.string.dialog_body_upload_error,
+                        )
+                    )
+                }
+                _uiState.update { it.copy(nowLoadingOption = NowLoadingOptions()) }
+                onResult(emptyList())
+            }
+        }
+    }
+
+    // 画像縮小
+    private suspend fun resizeImages(context: Context, uris: List<Uri>, maxSize: Int): List<File> {
+        val resizedFiles = mutableListOf<File>()
+        for (uri in uris) {
+            try {
+                val request = ImageRequest.Builder(context)
+                    .data(uri)
+                    .size(maxSize)
+                    .precision(Precision.INEXACT)
+                    .build()
+
+                val drawable = context.imageLoader.execute(request).drawable
+                val bitmap = (drawable as? BitmapDrawable)?.bitmap
+
+                bitmap?.let {
+                    // 一時ファイルを作成
+                    val tempFile =
+                        File(context.cacheDir, "resized_${System.currentTimeMillis()}.jpg")
+                    val outputStream = FileOutputStream(tempFile)
+
+                    // JPEG形式で圧縮して保存
+                    it.compress(Bitmap.CompressFormat.JPEG, 98, outputStream)
+                    outputStream.close()
+
+                    resizedFiles.add(tempFile)
+                }
+            } catch (e: Exception) {
+                Log.e("IclViewModel", "Image resize failed: ${e.message}")
+            }
+        }
+        return resizedFiles
+    }
+
+    private fun uriToFile(context: Context, uri: Uri): File? {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val tempFile = File.createTempFile("selected_image_", ".jpg", context.cacheDir)
+            tempFile.outputStream().use { output ->
+                inputStream?.copyTo(output)
+            }
+            tempFile
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // imgurから削除
+    override fun deleteImgurItem(item: LocalItem) {
+        _uiState.update {
+            it.copy(
+                nowLoadingOption = NowLoadingOptions(
+                    isOpen = true,
+                    title = R.string.now_loading_delete
+                )
+            )
+        }
+        viewModelScope.launch {
+            if (_uiState.value.selectedUploader == UploaderName.Imgur) {
+                val isOk: Boolean = iclRepository.checkImgurCredits()
+                Log.d("IclViewModel", "isOk: $isOk")
+                if (!isOk) {
+                    _uiState.update {
+                        it.copy(
+                            dialogOptions = DialogOptions(
+                                isOpen = true,
+                                title = R.string.dialog_title_upload_error,
+                                body = R.string.dialog_body_imgur_api_error,
+                            ),
+                            nowLoadingOption = NowLoadingOptions()
+                        )
+                    }
+                    return@launch;
+                }
+            }
+            //
+            val isSuccess: Boolean = iclRepository.deleteImgurItem(item)
+            Log.d("IclViewModel", "isSuccess: $isSuccess")
+            if (isSuccess) {
+                iclRepository.updateLocalItem(
+                    item.copy(
+                        isDeleted = true,
+                    )
+                )
+            } else {
+                _uiState.update {
+                    it.copy(
+                        dialogOptions = DialogOptions(
+                            isOpen = true,
+                            title = R.string.dialog_title_delete_error,
+                            body = R.string.dialog_body_delete_error,
+                        ),
+                        nowLoadingOption = NowLoadingOptions()
+                    )
+                }
+                return@launch;
+            }
+            //
+            _uiState.update {
+                it.copy(
+                    nowLoadingOption = NowLoadingOptions()
+                )
+            }
+        }
+    }
+
+    // 履歴アイテム削除
+    override fun deleteLocalItem(item: LocalItem) {
+        _uiState.update {
+            it.copy(
+                nowLoadingOption = NowLoadingOptions(
+                    isOpen = true,
+                    title = R.string.now_loading_delete
+                )
+            )
+        }
+        viewModelScope.launch {
+            iclRepository.deleteLocalItem(item)
+            _uiState.update {
+                it.copy(
+                    nowLoadingOption = NowLoadingOptions()
+                )
+            }
+        }
+    }
+
+    //
+    companion object {
+        val Factory: ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val application =
+                    (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as IclMushroomApplication)
+                IclViewModel(application.iclRepository)
+            }
+        }
+    }
+}
+
+class MockIclViewModel : BaseIclViewModel {
+    private val _uiState = MutableStateFlow(IclUiState())
+    override val uiState: StateFlow<IclUiState> = _uiState.asStateFlow()
+
+    override fun updateSelectedUploader(uploader: UploaderName) {}
+    override fun updateUserClientId(clientId: String) {}
+    override fun updateLocalClickOption(option: LocalClickOption) {}
+    override fun updateIsDeleteExif(checked: Boolean) {}
+    override fun setIsMushroom(boolean: Boolean) {}
+    override fun onImagesSelected(
+        context: Context,
+        uris: List<Uri>,
+        navController: NavController,
+    ) {
+    }
+
+    override fun openDialog(dialogOptions: DialogOptions) {}
+    override fun closeDialog() {}
+    override fun uploadImages(
+        context: Context,
+        navController: NavController,
+        reduceSize: Int?,
+        expiresHour: Int,
+        onResult: (List<String>) -> Unit,
+    ) {
+    }
+
+    override fun deleteLocalItem(item: LocalItem) {}
+    override fun deleteImgurItem(item: LocalItem) {}
+
+    fun updateSelectedFiles(files: List<Uri>) {
+        _uiState.update { it.copy(selectedFiles = files) }
+    }
+}
