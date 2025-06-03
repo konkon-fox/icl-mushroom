@@ -11,6 +11,7 @@ import io.github.konkonFox.iclmushroom.UploaderName
 import io.github.konkonFox.iclmushroom.model.ImgurCreditsResponse
 import io.github.konkonFox.iclmushroom.model.ImgurDeleteResponse
 import io.github.konkonFox.iclmushroom.model.ImgurUploadResponse
+import io.github.konkonFox.iclmushroom.model.MediaFile
 import io.github.konkonFox.iclmushroom.network.CatboxApiService
 import io.github.konkonFox.iclmushroom.network.ImgurApiService
 import io.github.konkonFox.iclmushroom.network.LitterboxApiService
@@ -22,8 +23,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.HttpException
-import java.io.File
 import java.io.IOException
+import java.net.URLConnection
 
 class IclRepository(
     private val dataStore: DataStore<androidx.datastore.preferences.core.Preferences>,
@@ -122,14 +123,17 @@ class IclRepository(
     }
 
     // 画像アップロード統括
-    suspend fun uploadImages(files: List<File>, expiresHour: Int): Result<List<LocalItem>> {
+    suspend fun uploadImages(
+        mediaFiles: List<MediaFile>,
+        expiresHour: Int,
+    ): Result<List<LocalItem>> {
         return try {
             val uploader = selectedUploader.first()
             when (uploader) {
-                UploaderName.Imgur.name -> uploadImageToImgur(files)
-                UploaderName.Catbox.name -> uploadImageToCatbox(files)
+                UploaderName.Imgur.name -> uploadImageToImgur(mediaFiles)
+                UploaderName.Catbox.name -> uploadImageToCatbox(mediaFiles)
                 UploaderName.Litterbox.name -> uploadImageToLitterbox(
-                    files = files,
+                    mediaFiles = mediaFiles,
                     expiresHour = expiresHour
                 )
 
@@ -179,13 +183,14 @@ class IclRepository(
     }
 
     // imgurにアップロード
-    private suspend fun uploadImageToImgur(files: List<File>): Result<List<LocalItem>> {
+    private suspend fun uploadImageToImgur(mediaFiles: List<MediaFile>): Result<List<LocalItem>> {
         val localItems = mutableListOf<LocalItem>()
         val uploader = selectedUploader.first()
         val clientId: String = getClientId()
         val authHeader = "Client-ID $clientId"
         // upload
-        files.forEach { file ->
+        mediaFiles.forEach { mediaFile ->
+            val (isVideo, file) = mediaFile
             try {
                 val requestFile = file.asRequestBody("image/*".toMediaType())
                 val imagePart =
@@ -202,6 +207,7 @@ class IclRepository(
                         deleteHash = response.data.deleteHash,
                         createdAt = System.currentTimeMillis(),
                         deleteAt = null,
+                        isVideo = isVideo
                     )
                 )
             } catch (e: HttpException) {
@@ -221,12 +227,16 @@ class IclRepository(
     }
 
     // catboxにアップロード
-    private suspend fun uploadImageToCatbox(files: List<File>): Result<List<LocalItem>> {
+    private suspend fun uploadImageToCatbox(mediaFiles: List<MediaFile>): Result<List<LocalItem>> {
         val localItems = mutableListOf<LocalItem>()
         val uploader = selectedUploader.first()
-        files.forEach { file ->
+
+        mediaFiles.forEach { mediaFile ->
+            val (isVideo, file) = mediaFile
             try {
-                val requestFile = file.asRequestBody("image/*".toMediaType())
+                val mimeType =
+                    URLConnection.guessContentTypeFromName(file.name) ?: "application/octet-stream"
+                val requestFile = file.asRequestBody(mimeType.toMediaType())
                 val reqTypePart = MultipartBody.Part.createFormData("reqtype", "fileupload")
                 val imagePart =
                     MultipartBody.Part.createFormData("fileToUpload", file.name, requestFile)
@@ -242,6 +252,7 @@ class IclRepository(
                         deleteHash = null,
                         createdAt = System.currentTimeMillis(),
                         deleteAt = null,
+                        isVideo = isVideo
                     )
                 )
             } catch (e: HttpException) {
@@ -263,14 +274,18 @@ class IclRepository(
 
     // litterboxにアップロード
     private suspend fun uploadImageToLitterbox(
-        files: List<File>,
+        mediaFiles: List<MediaFile>,
         expiresHour: Int,
     ): Result<List<LocalItem>> {
         val localItems = mutableListOf<LocalItem>()
         val uploader = selectedUploader.first()
-        files.forEach { file ->
+        mediaFiles.forEach { mediaFile ->
+            val (isVideo, file) = mediaFile
             try {
-                val requestFile = file.asRequestBody("image/*".toMediaType())
+                val mimeType =
+                    URLConnection.guessContentTypeFromName(file.name) ?: "application/octet-stream"
+                Log.d("IclRepository", mimeType)
+                val requestFile = file.asRequestBody(mimeType.toMediaType())
                 val reqTypePart = MultipartBody.Part.createFormData("reqtype", "fileupload")
                 val timePart = MultipartBody.Part.createFormData("time", "${expiresHour}h")
                 val imagePart =
@@ -290,6 +305,7 @@ class IclRepository(
                         deleteHash = null,
                         createdAt = createdAt,
                         deleteAt = deleteAt,
+                        isVideo = isVideo
                     )
                 )
             } catch (e: HttpException) {

@@ -1,6 +1,8 @@
 package io.github.konkonFox.iclmushroom.ui.screen
 
+import android.content.ClipData
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -21,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Downloading
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
@@ -32,15 +35,16 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -58,9 +62,11 @@ import io.github.konkonFox.iclmushroom.data.LocalItem
 import io.github.konkonFox.iclmushroom.ui.components.NoticeDialog
 import io.github.konkonFox.iclmushroom.ui.components.NowLoading
 import io.github.konkonFox.iclmushroom.ui.theme.ICLMushroomTheme
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
 
 fun formatTimestampCompat(timestamp: Long): String {
     val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault())
@@ -138,8 +144,10 @@ private fun Item(
 ) {
     val context = LocalContext.current
     val activity = context as? MainActivity
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     var isDialogOpen by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
 
     fun clickHandle() {
         when (clickOption) {
@@ -151,7 +159,11 @@ private fun Item(
             }
 
             LocalClickOption.Copy -> {
-                clipboardManager.setText(AnnotatedString(item.link))
+                coroutineScope.launch {
+                    clipboard.setClipEntry(
+                        ClipData.newPlainText(item.link, item.link).toClipEntry()
+                    )
+                }
             }
         }
     }
@@ -160,10 +172,15 @@ private fun Item(
         isDialogOpen = true
     }
 
-    val imageSrc: String = item.link + if (item.isDeleted) {
-        "?$nowTime"
+    val imageSrc = if (item.uploader == UploaderName.Imgur.name) {
+        val unixParam: String = item.link + if (item.isDeleted) {
+            "?$nowTime"
+        } else {
+            ""
+        }
+        item.link.replace(Regex("\\.[^.]+?$"), "m.jpeg") + unixParam
     } else {
-        ""
+        item.link
     }
 
     //
@@ -176,13 +193,21 @@ private fun Item(
             interactionSource = remember { MutableInteractionSource() }
         )
     ) {
-        AsyncImage(
-            model = imageSrc,
-            contentDescription = null,
-            placeholder = rememberVectorPainter(Icons.Default.Downloading),
-            error = rememberVectorPainter(Icons.Default.BrokenImage),
-            modifier = Modifier.size(60.dp)
-        )
+        if (item.uploader != UploaderName.Imgur.name && item.isVideo) {
+            Image(
+                imageVector = Icons.Default.Videocam,
+                contentDescription = null,
+                modifier = Modifier.size(60.dp)
+            )
+        } else {
+            AsyncImage(
+                model = imageSrc,
+                contentDescription = null,
+                placeholder = rememberVectorPainter(Icons.Default.Downloading),
+                error = rememberVectorPainter(Icons.Default.BrokenImage),
+                modifier = Modifier.size(60.dp)
+            )
+        }
         Column(
             modifier = Modifier
                 .padding(

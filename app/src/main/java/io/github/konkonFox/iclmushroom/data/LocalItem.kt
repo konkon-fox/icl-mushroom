@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "items")
 data class LocalItem(
+    // 1
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val uploader: String,
@@ -14,4 +15,6 @@ data class LocalItem(
     val deleteHash: String?,
     val createdAt: Long,
     val deleteAt: Long?,
+    // 2
+    val isVideo: Boolean = false,
 )

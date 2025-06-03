@@ -18,6 +18,7 @@ import coil.request.ImageRequest
 import coil.size.Precision
 import io.github.konkonFox.iclmushroom.data.IclRepository
 import io.github.konkonFox.iclmushroom.data.LocalItem
+import io.github.konkonFox.iclmushroom.model.MediaFile
 import io.github.konkonFox.iclmushroom.ui.IclScreen
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -209,8 +210,13 @@ class IclViewModel(
         val urls = mutableListOf<String>()
         viewModelScope.launch {
             val uris: List<Uri> = _uiState.value.selectedFiles
-            val rawFiles: List<File> = if (reduceSize == null) {
-                uris.mapNotNull { uri -> uriToFile(context = context, uri = uri) }
+            val (imageUris, videoUris) = uris.partition { uri ->
+                val mineType = context.contentResolver.getType(uri) ?: ""
+                mineType.startsWith("image/")
+            }
+
+            val resizedImageFiles: List<File> = if (reduceSize == null) {
+                imageUris.mapNotNull { uri -> uriToFile(context = context, uri = uri) }
             } else {
                 resizeImages(
                     context = context,
@@ -218,8 +224,8 @@ class IclViewModel(
                     maxSize = reduceSize,
                 )
             }
-            val files: List<File> = if (_uiState.value.isDeleteExif) {
-                rawFiles.map { file ->
+            val finalImageFiles: List<File> = if (_uiState.value.isDeleteExif) {
+                resizedImageFiles.map { file ->
                     val exif = ExifInterface(file.absolutePath)
                     val exifTags = listOf(
                         ExifInterface.TAG_MAKE,
@@ -244,8 +250,25 @@ class IclViewModel(
                     file
                 }
             } else {
-                rawFiles
+                resizedImageFiles
             }
+
+            val videoFiles: List<File> = videoUris.mapNotNull { uri ->
+                uriToFile(context, uri)
+            }
+            val allMediaFiles: List<MediaFile> =
+                finalImageFiles.map({
+                    MediaFile(
+                        isVideo = false,
+                        file = it,
+                    )
+                }) +
+                        videoFiles.map({
+                            MediaFile(
+                                isVideo = true,
+                                file = it,
+                            )
+                        })
 
             _uiState.update {
                 it.copy(
@@ -273,7 +296,7 @@ class IclViewModel(
                 }
             }
             val result: Result<List<LocalItem>> =
-                iclRepository.uploadImages(files = files, expiresHour = expiresHour)
+                iclRepository.uploadImages(mediaFiles = allMediaFiles, expiresHour = expiresHour)
             result.onSuccess { localItems ->
                 // 成功時処理
                 localItems.forEach { item ->
@@ -337,7 +360,18 @@ class IclViewModel(
     private fun uriToFile(context: Context, uri: Uri): File? {
         return try {
             val inputStream = context.contentResolver.openInputStream(uri)
-            val tempFile = File.createTempFile("selected_image_", ".jpg", context.cacheDir)
+            val mimeType = context.contentResolver.getType(uri)
+            val extension = when (mimeType) {
+                "image/jpeg" -> ".jpg"
+                "image/png" -> ".png"
+                "image/gif" -> ".gif"
+                "video/mp4" -> ".mp4"
+                "video/webm" -> ".webm"
+                "video/quicktime" -> ".mov"
+                else -> ".bin" // fallback
+            }
+
+            val tempFile = File.createTempFile("selected_image_", extension, context.cacheDir)
             tempFile.outputStream().use { output ->
                 inputStream?.copyTo(output)
             }
