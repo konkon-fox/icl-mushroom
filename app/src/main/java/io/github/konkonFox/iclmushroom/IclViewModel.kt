@@ -48,6 +48,8 @@ data class DialogOptions(
     @StringRes val title: Int = R.string.dummy,
     @StringRes val body: Int = R.string.dummy,
     val dynamicBody: String? = null,
+    val onOk: () -> Unit = {},
+    val closeFun: () -> Unit = {},
 )
 
 data class NowLoadingOptions(
@@ -88,6 +90,9 @@ interface BaseIclViewModel {
 
     fun deleteLocalItem(item: LocalItem)
     fun deleteImgurItem(item: LocalItem)
+    fun deleteDeletedImgurItems()
+    fun deleteExpiredLitterboxItems()
+    fun deleteAllLocalItems()
 }
 
 class IclViewModel(
@@ -461,6 +466,77 @@ class IclViewModel(
         }
     }
 
+    // 履歴アイテム削除 imgur削除済み
+    override fun deleteDeletedImgurItems() {
+        _uiState.update {
+            it.copy(
+                nowLoadingOption = NowLoadingOptions(
+                    isOpen = true,
+                    title = R.string.now_loading_delete
+                )
+            )
+        }
+        viewModelScope.launch {
+            _uiState.value.localItems.forEach {
+                if (it.uploader == UploaderName.Imgur.name && it.isDeleted) {
+                    iclRepository.deleteLocalItem(it)
+                }
+            }
+            _uiState.update {
+                it.copy(
+                    nowLoadingOption = NowLoadingOptions()
+                )
+            }
+        }
+    }
+
+    // 履歴アイテム削除 litterbox期限切れ
+    override fun deleteExpiredLitterboxItems() {
+        _uiState.update {
+            it.copy(
+                nowLoadingOption = NowLoadingOptions(
+                    isOpen = true,
+                    title = R.string.now_loading_delete
+                )
+            )
+        }
+        val nowTime = System.currentTimeMillis()
+        viewModelScope.launch {
+            _uiState.value.localItems.forEach {
+                if (it.uploader == UploaderName.Litterbox.name && it.deleteAt !== null && it.deleteAt < nowTime) {
+                    iclRepository.deleteLocalItem(it)
+                }
+            }
+            _uiState.update {
+                it.copy(
+                    nowLoadingOption = NowLoadingOptions()
+                )
+            }
+        }
+    }
+
+    // 履歴アイテム削除 全て
+    override fun deleteAllLocalItems() {
+        _uiState.update {
+            it.copy(
+                nowLoadingOption = NowLoadingOptions(
+                    isOpen = true,
+                    title = R.string.now_loading_delete
+                )
+            )
+        }
+        viewModelScope.launch {
+            _uiState.value.localItems.forEach {
+                iclRepository.deleteLocalItem(it)
+            }
+            _uiState.update {
+                it.copy(
+                    nowLoadingOption = NowLoadingOptions()
+                )
+            }
+        }
+    }
+
     //
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
@@ -502,6 +578,9 @@ class MockIclViewModel : BaseIclViewModel {
 
     override fun deleteLocalItem(item: LocalItem) {}
     override fun deleteImgurItem(item: LocalItem) {}
+    override fun deleteDeletedImgurItems() {}
+    override fun deleteExpiredLitterboxItems() {}
+    override fun deleteAllLocalItems() {}
 
     fun updateSelectedFiles(files: List<Uri>) {
         _uiState.update { it.copy(selectedFiles = files) }

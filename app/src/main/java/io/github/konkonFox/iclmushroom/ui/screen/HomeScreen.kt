@@ -111,7 +111,9 @@ fun HomeScreen(
                         isOpen = true,
                         title = R.string.dialog_title_version_info,
                         body = R.string.dialog_body_version_info,
-                        dynamicBody = BuildConfig.VERSION_NAME.toString()
+                        dynamicBody = BuildConfig.VERSION_NAME.toString(),
+                        onOk = {},
+                        closeFun = {},
                     )
                 )
             },
