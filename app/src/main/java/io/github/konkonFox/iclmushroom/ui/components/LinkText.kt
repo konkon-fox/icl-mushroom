@@ -3,7 +3,11 @@ package io.github.konkonFox.iclmushroom.ui.components
 import android.content.Context
 import androidx.annotation.StringRes
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.text.ClickableText
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -44,19 +48,24 @@ fun LinkText(
             end = text.length
         )
     }
-
-    @Suppress("DEPRECATION")
-    ClickableText(
-        text = annotatedText,
-        style = MaterialTheme.typography.bodyLarge,
-        onClick = { offset ->
-            annotatedText.getStringAnnotations("URL", offset, offset)
-                .firstOrNull()?.let { stringAnnotation ->
-                    openCustomTab(context, stringAnnotation.item)
-                }
-        },
-        modifier = modifier
-    )
+    Row{
+        Icon(
+            Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "open in new"
+            , tint = MaterialTheme.colorScheme.primary
+        )
+        @Suppress("DEPRECATION")
+        ClickableText(
+            text = annotatedText,
+            style = MaterialTheme.typography.bodyLarge,
+            onClick = { offset ->
+                annotatedText.getStringAnnotations("URL", offset, offset)
+                    .firstOrNull()?.let { stringAnnotation ->
+                        openCustomTab(context, stringAnnotation.item)
+                    }
+            },
+            modifier = modifier
+        )
+    }
 }
 
 fun openCustomTab(context: Context, url: String) {

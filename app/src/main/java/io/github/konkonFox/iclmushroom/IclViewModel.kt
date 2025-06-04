@@ -189,7 +189,7 @@ class IclViewModel(
 
     // 画像選択
     override fun onImagesSelected(context: Context, uris: List<Uri>, navController: NavController) {
-        if (uris.size > 6) {
+        if (uris.size > 5) {
             openDialog(
                 DialogOptions(
                     isOpen = true,

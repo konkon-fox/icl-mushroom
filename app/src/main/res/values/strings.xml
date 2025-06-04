@@ -48,5 +48,7 @@
     <string name="url_catbox_tos">https://catbox.moe/legal.php</string>
     <string name="url_litterbox_tos">https://catbox.moe/legal.php</string>
     <string name="histories_screen">アップロード履歴</string>
+    <string name="github_releases_url">https://github.com/konkon-fox/icl-mushroom/releases</string>
+    <string name="github_releases_text">更新情報を確認する</string>
 
 </resources>
