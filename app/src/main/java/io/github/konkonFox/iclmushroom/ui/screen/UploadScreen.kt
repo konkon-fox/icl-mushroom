@@ -1,5 +1,6 @@
 package io.github.konkonFox.iclmushroom.ui.screen
 
+import android.content.ClipData
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,22 +12,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
@@ -47,6 +51,9 @@ import io.github.konkonFox.iclmushroom.ui.components.LinkText
 import io.github.konkonFox.iclmushroom.ui.components.NoticeDialog
 import io.github.konkonFox.iclmushroom.ui.components.NowLoading
 import io.github.konkonFox.iclmushroom.ui.theme.ICLMushroomTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private data class ReduceOption(val label: String, val value: Int?)
 
@@ -100,6 +107,9 @@ fun UploadScreen(
         Catbox -> R.string.url_catbox_tos
         Litterbox -> R.string.url_litterbox_tos
     }
+    //
+    val clipboard = LocalClipboard.current
+    val coroutineScope = rememberCoroutineScope()
     //
 
     Column(modifier = modifier) {
@@ -171,27 +181,53 @@ fun UploadScreen(
             }
             HorizontalDivider(thickness = 1.dp)
 
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .selectable(
+                            selected = uiState.isDeleteExif,
+                            onClick = { viewModel.updateIsDeleteExif(!uiState.isDeleteExif) },
+                            role = Role.Switch
+                        ),
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .padding(16.dp)
-                    .selectable(
-                        selected = uiState.isDeleteExif,
-                        onClick = { viewModel.updateIsDeleteExif(!uiState.isDeleteExif) },
-                        role = Role.Checkbox
-                    ),
+                    ) {
+                    Text(
+                        text = stringResource(R.string.toggle_delete_exif),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = uiState.isDeleteExif,
+                        onCheckedChange = { it ->
+                            viewModel.updateIsDeleteExif(it)
+                        },
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .selectable(
+                            selected = uiState.isCopyUrlAfterUpload,
+                            onClick = { viewModel.updateIsCopyUrlAfterUpload(!uiState.isCopyUrlAfterUpload) },
+                            role = Role.Switch
+                        ),
 
-                ) {
-                Checkbox(
-                    checked = uiState.isDeleteExif,
-                    onCheckedChange = { it ->
-                        viewModel.updateIsDeleteExif(it)
-                    }
-                )
-                Text(
-                    text = stringResource(R.string.checkbox_delete_exif)
-                )
+                    ) {
+                    Text(
+                        text = stringResource(R.string.toggle_copy_url_after_upload),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = uiState.isCopyUrlAfterUpload,
+                        onCheckedChange = { it ->
+                            viewModel.updateIsCopyUrlAfterUpload(it)
+                        },
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
             }
             HorizontalDivider(thickness = 1.dp)
 
@@ -225,7 +261,9 @@ fun UploadScreen(
         Column {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(8.dp).fillMaxWidth()
+                modifier = Modifier
+                    .padding(8.dp)
+                    .fillMaxWidth()
             ) {
                 LinkText(
                     textRes = R.string.tos,
@@ -260,8 +298,17 @@ fun UploadScreen(
                             onResult = { list ->
                                 if (list.isEmpty()) return@uploadImages
                                 val activity = context as? MainActivity
-                                if (uiState.isMushroom && activity != null) {
-                                    val result = "\n" + list.joinToString("\n") + "\n"
+                                val result = list.joinToString("\n") + "\n"
+                                if (uiState.isCopyUrlAfterUpload) {
+                                    coroutineScope.launch {
+                                        clipboard.setClipEntry(
+                                            ClipData.newPlainText(result, result).toClipEntry()
+                                        )
+                                        withContext(Dispatchers.Main) {
+                                            activity?.returnResultToCaller(result)
+                                        }
+                                    }
+                                } else if ((uiState.isMushroom || uiState.isShared) && activity != null) {
                                     activity.returnResultToCaller(result)
                                 }
                             }

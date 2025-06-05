@@ -35,6 +35,7 @@ class IclRepository(
         val USER_CLIENT_ID = stringPreferencesKey("user_client_id")
         val LOCAL_CLICK_OPTION = stringPreferencesKey("local_click_option")
         val IS_DELETE_EXIF = booleanPreferencesKey("is_delete_exif")
+        val IS_COPY_URL_AFTER_UPLOAD = booleanPreferencesKey("is_copy_url_after_upload")
         const val TAG = "IclRepository"
     }
 
@@ -94,6 +95,20 @@ class IclRepository(
             preferences[IS_DELETE_EXIF] == true // デフォルト値
         }
 
+    // is_copy_url_after_upload の取得
+    val isCopyUrlAfterUpload: Flow<Boolean> = dataStore.data
+        .catch {
+            if (it is IOException) {
+                Log.e(TAG, "Error reading preferences.", it)
+                emit(emptyPreferences())
+            } else {
+                throw it
+            }
+        }
+        .map { preferences ->
+            preferences[IS_COPY_URL_AFTER_UPLOAD] == true // デフォルト値
+        }
+
     // selected_uploader の保存
     suspend fun updateSelectedUploader(uploader: UploaderName) {
         dataStore.edit { preferences ->
@@ -119,6 +134,13 @@ class IclRepository(
     suspend fun updateIsDeleteExif(checked: Boolean) {
         dataStore.edit { preferences ->
             preferences[IS_DELETE_EXIF] = checked
+        }
+    }
+
+    // is_copy_url_after_upload の保存
+    suspend fun updateIsCopyUrlAfterUpload(checked: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[IS_COPY_URL_AFTER_UPLOAD] = checked
         }
     }
 
@@ -163,8 +185,6 @@ class IclRepository(
             val response: ImgurCreditsResponse = ImgurApiService.api.getCredits(
                 authHeader = authHeader
             )
-            Log.d("IclRepository", response.data.userRemaining.toString())
-            Log.d("IclRepository", response.data.clientRemaining.toString())
             return response.data.userRemaining > 100 && response.data.clientRemaining > 1250
         } catch (e: HttpException) {
             Log.e(

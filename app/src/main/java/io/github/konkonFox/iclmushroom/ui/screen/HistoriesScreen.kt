@@ -156,8 +156,8 @@ private fun Item(
 ) {
     val context = LocalContext.current
     val activity = context as? MainActivity
-    val clipboard = LocalClipboard.current
     var isDialogOpen by remember { mutableStateOf(false) }
+    val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
 
 

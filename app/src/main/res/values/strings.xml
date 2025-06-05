@@ -39,7 +39,8 @@
     <string name="no_items">No Items.</string>
     <string name="radio_insert">呼び出し元に挿入</string>
     <string name="radio_copy">クリップボードにコピー</string>
-    <string name="checkbox_delete_exif">Exifを削除(一部)</string>
+    <string name="toggle_delete_exif">Exifを削除(一部)</string>
+    <string name="toggle_copy_url_after_upload">アップロード時にURLをコピー</string>
     <string name="input_imgur_client_id">Imgur ClientID を入力</string>
     <string name="label_imgur_client_id">Imgur ClientID</string>
     <string name="tos">利用規約</string>

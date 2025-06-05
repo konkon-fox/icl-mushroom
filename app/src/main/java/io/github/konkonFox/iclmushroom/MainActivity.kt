@@ -2,6 +2,8 @@ package io.github.konkonFox.iclmushroom
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -17,10 +19,21 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val isMushroom: Boolean = intent.action == "com.adamrocker.android.simeji.ACTION_INTERCEPT"
+        val isShared: Boolean = intent.action == Intent.ACTION_SEND
+        val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+        }
 
         setContent {
             ICLMushroomTheme {
-                IclApp(isMushroom)
+                IclApp(
+                    isMushroom = isMushroom,
+                    isShared = isShared,
+                    sharedUris = listOfNotNull(uri)
+                )
             }
         }
     }

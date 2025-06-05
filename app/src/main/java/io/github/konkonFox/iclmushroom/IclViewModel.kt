@@ -68,6 +68,8 @@ data class IclUiState(
     val localClickOption: LocalClickOption = LocalClickOption.Insert,
     val isMushroom: Boolean = false,
     val targetLocalItem: LocalItem? = null,
+    val isShared: Boolean = false,
+    val isCopyUrlAfterUpload: Boolean = false,
 )
 
 interface BaseIclViewModel {
@@ -93,6 +95,8 @@ interface BaseIclViewModel {
     fun deleteDeletedImgurItems()
     fun deleteExpiredLitterboxItems()
     fun deleteAllLocalItems()
+    fun updateIsCopyUrlAfterUpload(checked: Boolean)
+    fun setIsShared(boolean: Boolean)
 }
 
 class IclViewModel(
@@ -112,13 +116,15 @@ class IclViewModel(
                 iclRepository.userClientId,
                 iclRepository.localClickOption,
                 iclRepository.isDeleteExif,
-            ) { uploader, clientId, option, checked ->
+                iclRepository.isCopyUrlAfterUpload
+            ) { uploader, clientId, option, deleteExif, copyUrl ->
                 _uiState.update {
                     it.copy(
                         selectedUploader = UploaderName.valueOf(uploader),
                         userClientId = clientId,
                         localClickOption = LocalClickOption.valueOf(option),
-                        isDeleteExif = checked
+                        isDeleteExif = deleteExif,
+                        isCopyUrlAfterUpload = copyUrl
                     )
                 }
             }.collect()
@@ -160,11 +166,27 @@ class IclViewModel(
         }
     }
 
+    // アップロード後にURLコピー判定　変更
+    override fun updateIsCopyUrlAfterUpload(checked: Boolean) {
+        viewModelScope.launch {
+            iclRepository.updateIsCopyUrlAfterUpload(checked)
+        }
+    }
+
     // マッシュルーム判別
     override fun setIsMushroom(boolean: Boolean) {
         _uiState.update {
             it.copy(
                 isMushroom = boolean
+            )
+        }
+    }
+
+    // シェアボタン起動判別
+    override fun setIsShared(boolean: Boolean) {
+        _uiState.update {
+            it.copy(
+                isShared = boolean
             )
         }
     }
@@ -400,7 +422,6 @@ class IclViewModel(
         viewModelScope.launch {
             if (_uiState.value.selectedUploader == UploaderName.Imgur) {
                 val isOk: Boolean = iclRepository.checkImgurCredits()
-                Log.d("IclViewModel", "isOk: $isOk")
                 if (!isOk) {
                     _uiState.update {
                         it.copy(
@@ -417,7 +438,6 @@ class IclViewModel(
             }
             //
             val isSuccess: Boolean = iclRepository.deleteImgurItem(item)
-            Log.d("IclViewModel", "isSuccess: $isSuccess")
             if (isSuccess) {
                 iclRepository.updateLocalItem(
                     item.copy(
@@ -581,6 +601,9 @@ class MockIclViewModel : BaseIclViewModel {
     override fun deleteDeletedImgurItems() {}
     override fun deleteExpiredLitterboxItems() {}
     override fun deleteAllLocalItems() {}
+    override fun updateIsCopyUrlAfterUpload(checked: Boolean) {}
+    override fun setIsShared(boolean: Boolean) {}
+
 
     fun updateSelectedFiles(files: List<Uri>) {
         _uiState.update { it.copy(selectedFiles = files) }

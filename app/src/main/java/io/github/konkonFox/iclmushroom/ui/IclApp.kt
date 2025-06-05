@@ -1,5 +1,6 @@
 package io.github.konkonFox.iclmushroom.ui
 
+import android.net.Uri
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.WindowInsets
@@ -12,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -34,13 +36,24 @@ enum class IclScreen {
 @Composable
 fun IclApp(
     isMushroom: Boolean = false,
+    isShared: Boolean = false,
+    sharedUris: List<Uri> = emptyList(),
     iclViewModel: IclViewModel = viewModel(
         factory = IclViewModel.Factory
     ),
     navController: NavHostController = rememberNavController(),
 ) {
+    val context = LocalContext.current
     LaunchedEffect(Unit) {
         iclViewModel.setIsMushroom(isMushroom)
+        iclViewModel.setIsShared(isShared)
+        if (isShared && sharedUris.isNotEmpty()) {
+            iclViewModel.onImagesSelected(
+                uris = sharedUris,
+                context = context,
+                navController = navController
+            )
+        }
     }
 
     Scaffold(
