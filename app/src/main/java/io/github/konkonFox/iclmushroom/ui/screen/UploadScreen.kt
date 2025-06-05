@@ -304,8 +304,10 @@ fun UploadScreen(
                                         clipboard.setClipEntry(
                                             ClipData.newPlainText(result, result).toClipEntry()
                                         )
-                                        withContext(Dispatchers.Main) {
-                                            activity?.returnResultToCaller(result)
+                                        if ((uiState.isMushroom || uiState.isShared) && activity != null) {
+                                            withContext(Dispatchers.Main) {
+                                                activity.returnResultToCaller(result)
+                                            }
                                         }
                                     }
                                 } else if ((uiState.isMushroom || uiState.isShared) && activity != null) {
