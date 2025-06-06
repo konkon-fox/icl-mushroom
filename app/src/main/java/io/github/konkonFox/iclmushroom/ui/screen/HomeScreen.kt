@@ -1,6 +1,5 @@
 package io.github.konkonFox.iclmushroom.ui.screen
 
-import android.app.Activity
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -9,18 +8,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,10 +33,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import coil.compose.AsyncImagePainter.State.Empty.painter
 import io.github.konkonFox.iclmushroom.BaseIclViewModel
 import io.github.konkonFox.iclmushroom.BuildConfig
-import io.github.konkonFox.iclmushroom.DialogOptions
 import io.github.konkonFox.iclmushroom.IclUiState
 import io.github.konkonFox.iclmushroom.MockIclViewModel
 import io.github.konkonFox.iclmushroom.R
@@ -51,7 +42,6 @@ import io.github.konkonFox.iclmushroom.ui.IclScreen
 import io.github.konkonFox.iclmushroom.ui.components.LinkText
 import io.github.konkonFox.iclmushroom.ui.components.ListButton
 import io.github.konkonFox.iclmushroom.ui.components.NoticeDialog
-import io.github.konkonFox.iclmushroom.ui.components.TextInputDialog
 import io.github.konkonFox.iclmushroom.ui.theme.ICLMushroomTheme
 
 
@@ -139,7 +129,6 @@ fun HomeScreen(
     navController: NavController,
     modifier: Modifier = Modifier,
 ) {
-    var isImgurInputDialog by remember { mutableStateOf(false) }
     var isInformationDialog by remember { mutableStateOf(false) }
 
     Column(
@@ -156,9 +145,9 @@ fun HomeScreen(
         )
         HorizontalDivider(thickness = 1.dp)
         ListButton(
-            textRes = R.string.btn_imgur_settings,
+            textRes = R.string.btn_settings,
             onClick = {
-                isImgurInputDialog = true
+                navController.navigate(IclScreen.Settings.name)
             },
         )
         HorizontalDivider(thickness = 1.dp)
@@ -177,16 +166,6 @@ fun HomeScreen(
             dynamicBody = uiState.dialogOptions.dynamicBody,
             onClick = { viewModel.closeDialog() }
         )
-    } else if (isImgurInputDialog) {
-        TextInputDialog(
-            titleRes = R.string.input_imgur_client_id,
-            labelRes = R.string.label_imgur_client_id,
-            initialValue = uiState.userClientId,
-            onOk = { resultValue ->
-                viewModel.updateUserClientId(resultValue)
-            },
-            closeFun = { isImgurInputDialog = false }
-        )
     } else if (isInformationDialog) {
         InformationDialog(
             titleRes = R.string.dialog_title_version_info,
@@ -194,8 +173,11 @@ fun HomeScreen(
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier =Modifier.fillMaxWidth().padding(
-                    top = 8.dp, bottom = 8.dp, start = 16.dp, end = 16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        top = 8.dp, bottom = 8.dp, start = 16.dp, end = 16.dp
+                    )
             ) {
                 Text(
                     stringResource(

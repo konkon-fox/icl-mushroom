@@ -17,6 +17,7 @@ import coil.imageLoader
 import coil.request.ImageRequest
 import coil.size.Precision
 import io.github.konkonFox.iclmushroom.data.IclRepository
+import io.github.konkonFox.iclmushroom.data.ImgurAccountData
 import io.github.konkonFox.iclmushroom.data.LocalItem
 import io.github.konkonFox.iclmushroom.model.MediaFile
 import io.github.konkonFox.iclmushroom.ui.IclScreen
@@ -70,6 +71,9 @@ data class IclUiState(
     val targetLocalItem: LocalItem? = null,
     val isShared: Boolean = false,
     val isCopyUrlAfterUpload: Boolean = false,
+    val imgurAccessToken: String = "",
+    val imgurAccountName: String = "",
+    val imgurExpireAt: Long = 0,
 )
 
 interface BaseIclViewModel {
@@ -97,6 +101,8 @@ interface BaseIclViewModel {
     fun deleteAllLocalItems()
     fun updateIsCopyUrlAfterUpload(checked: Boolean)
     fun setIsShared(boolean: Boolean)
+    fun updateImgurAccountData(imgurAccountData: ImgurAccountData)
+    fun deleteImgurAccountData()
 }
 
 class IclViewModel(
@@ -125,6 +131,21 @@ class IclViewModel(
                         localClickOption = LocalClickOption.valueOf(option),
                         isDeleteExif = deleteExif,
                         isCopyUrlAfterUpload = copyUrl
+                    )
+                }
+            }.collect()
+        }
+        viewModelScope.launch {
+            combine(
+                iclRepository.imgurAccessToken,
+                iclRepository.imgurAccountName,
+                iclRepository.imgurExpireAt
+            ) { token, name, expireAt ->
+                _uiState.update {
+                    it.copy(
+                        imgurAccessToken = token,
+                        imgurAccountName = name,
+                        imgurExpireAt = expireAt
                     )
                 }
             }.collect()
@@ -557,6 +578,30 @@ class IclViewModel(
         }
     }
 
+    // imgur アカウント情報更新
+    override fun updateImgurAccountData(imgurAccountData: ImgurAccountData) {
+        viewModelScope.launch {
+            if (imgurAccountData.accessToken != null) {
+                iclRepository.updateImgurAccessToken(imgurAccountData.accessToken)
+            }
+            if (imgurAccountData.name != null) {
+                iclRepository.updateImgurAccountName(imgurAccountData.name)
+            }
+            if (imgurAccountData.expireAt != null) {
+                iclRepository.updateImgurExpireAt(imgurAccountData.expireAt)
+            }
+        }
+    }
+
+    // imgur アカウント情報更新
+    override fun deleteImgurAccountData() {
+        viewModelScope.launch {
+            iclRepository.updateImgurAccessToken("")
+            iclRepository.updateImgurAccountName("")
+            iclRepository.updateImgurExpireAt(0)
+        }
+    }
+
     //
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
@@ -603,7 +648,8 @@ class MockIclViewModel : BaseIclViewModel {
     override fun deleteAllLocalItems() {}
     override fun updateIsCopyUrlAfterUpload(checked: Boolean) {}
     override fun setIsShared(boolean: Boolean) {}
-
+    override fun updateImgurAccountData(imgurAccountData: ImgurAccountData) {}
+    override fun deleteImgurAccountData() {}
 
     fun updateSelectedFiles(files: List<Uri>) {
         _uiState.update { it.copy(selectedFiles = files) }

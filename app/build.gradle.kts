@@ -104,3 +104,4 @@ dependencies {
     // browser
     implementation(libs.androidx.browser)
 }
+

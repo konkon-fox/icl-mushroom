@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import io.github.konkonFox.iclmushroom.LocalClickOption
 import io.github.konkonFox.iclmushroom.UploaderName
@@ -36,6 +37,9 @@ class IclRepository(
         val LOCAL_CLICK_OPTION = stringPreferencesKey("local_click_option")
         val IS_DELETE_EXIF = booleanPreferencesKey("is_delete_exif")
         val IS_COPY_URL_AFTER_UPLOAD = booleanPreferencesKey("is_copy_url_after_upload")
+        val IMGUR_ACCESS_TOKEN = stringPreferencesKey("imgur_access_token")
+        val IMGUR_ACCOUNT_NAME = stringPreferencesKey("imgur_account_name")
+        val IMGUR_EXPIRE_AT = longPreferencesKey("imgur_expire_at")
         const val TAG = "IclRepository"
     }
 
@@ -109,6 +113,48 @@ class IclRepository(
             preferences[IS_COPY_URL_AFTER_UPLOAD] == true // デフォルト値
         }
 
+    // imgur access token の取得
+    val imgurAccessToken: Flow<String> = dataStore.data
+        .catch {
+            if (it is IOException) {
+                Log.e(TAG, "Error reading preferences.", it)
+                emit(emptyPreferences())
+            } else {
+                throw it
+            }
+        }
+        .map { preferences ->
+            preferences[IMGUR_ACCESS_TOKEN] ?: "" // デフォルト値
+        }
+
+    // imgur account name の取得
+    val imgurAccountName: Flow<String> = dataStore.data
+        .catch {
+            if (it is IOException) {
+                Log.e(TAG, "Error reading preferences.", it)
+                emit(emptyPreferences())
+            } else {
+                throw it
+            }
+        }
+        .map { preferences ->
+            preferences[IMGUR_ACCOUNT_NAME] ?: "" // デフォルト値
+        }
+
+    // imgur expire at の取得
+    val imgurExpireAt: Flow<Long> = dataStore.data
+        .catch {
+            if (it is IOException) {
+                Log.e(TAG, "Error reading preferences.", it)
+                emit(emptyPreferences())
+            } else {
+                throw it
+            }
+        }
+        .map { preferences ->
+            preferences[IMGUR_EXPIRE_AT] ?: 0 // デフォルト値
+        }
+
     // selected_uploader の保存
     suspend fun updateSelectedUploader(uploader: UploaderName) {
         dataStore.edit { preferences ->
@@ -141,6 +187,27 @@ class IclRepository(
     suspend fun updateIsCopyUrlAfterUpload(checked: Boolean) {
         dataStore.edit { preferences ->
             preferences[IS_COPY_URL_AFTER_UPLOAD] = checked
+        }
+    }
+
+    // selected_uploader の保存
+    suspend fun updateImgurAccessToken(token: String) {
+        dataStore.edit { preferences ->
+            preferences[IMGUR_ACCESS_TOKEN] = token
+        }
+    }
+
+    // selected_uploader の保存
+    suspend fun updateImgurAccountName(name: String) {
+        dataStore.edit { preferences ->
+            preferences[IMGUR_ACCOUNT_NAME] = name
+        }
+    }
+
+    // selected_uploader の保存
+    suspend fun updateImgurExpireAt(time: Long) {
+        dataStore.edit { preferences ->
+            preferences[IMGUR_EXPIRE_AT] = time
         }
     }
 
