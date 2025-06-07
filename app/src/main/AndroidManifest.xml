@@ -32,6 +32,28 @@
                 <category android:name="com.adamrocker.android.simeji.REPLACE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <!-- 共有インテント -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            <!-- callback -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="io.github.konkonfox.iclmushroom"
+                    android:host="callback" />
+            </intent-filter>
         </activity>
     </application>
 

@@ -17,6 +17,7 @@ import coil.imageLoader
 import coil.request.ImageRequest
 import coil.size.Precision
 import io.github.konkonFox.iclmushroom.data.IclRepository
+import io.github.konkonFox.iclmushroom.data.ImgurAccountData
 import io.github.konkonFox.iclmushroom.data.LocalItem
 import io.github.konkonFox.iclmushroom.model.MediaFile
 import io.github.konkonFox.iclmushroom.ui.IclScreen
@@ -48,6 +49,8 @@ data class DialogOptions(
     @StringRes val title: Int = R.string.dummy,
     @StringRes val body: Int = R.string.dummy,
     val dynamicBody: String? = null,
+    val onOk: () -> Unit = {},
+    val closeFun: () -> Unit = {},
 )
 
 data class NowLoadingOptions(
@@ -62,10 +65,17 @@ data class IclUiState(
     val isDeleteExif: Boolean = false,
     val nowLoadingOption: NowLoadingOptions = NowLoadingOptions(),
     val dialogOptions: DialogOptions = DialogOptions(),
+    val confirmDialogOptions: DialogOptions = DialogOptions(),
     val localItems: List<LocalItem> = emptyList(),
     val localClickOption: LocalClickOption = LocalClickOption.Insert,
     val isMushroom: Boolean = false,
     val targetLocalItem: LocalItem? = null,
+    val isShared: Boolean = false,
+    val isCopyUrlAfterUpload: Boolean = false,
+    val imgurAccessToken: String = "",
+    val imgurAccountName: String = "",
+    val imgurExpireAt: Long = 0,
+    val useImgurAccount: Boolean = false,
 )
 
 interface BaseIclViewModel {
@@ -78,6 +88,8 @@ interface BaseIclViewModel {
     fun onImagesSelected(context: Context, uris: List<Uri>, navController: NavController)
     fun openDialog(dialogOptions: DialogOptions)
     fun closeDialog()
+    fun openConfirmDialog(dialogOptions: DialogOptions)
+    fun closeConfirmDialog()
     fun uploadImages(
         context: Context,
         navController: NavController,
@@ -88,6 +100,14 @@ interface BaseIclViewModel {
 
     fun deleteLocalItem(item: LocalItem)
     fun deleteImgurItem(item: LocalItem)
+    fun deleteDeletedImgurItems()
+    fun deleteExpiredLitterboxItems()
+    fun deleteAllLocalItems()
+    fun updateIsCopyUrlAfterUpload(checked: Boolean)
+    fun setIsShared(boolean: Boolean)
+    fun updateImgurAccountData(imgurAccountData: ImgurAccountData)
+    fun deleteImgurAccountData()
+    fun updateUseImgurAccount(boolean: Boolean)
 }
 
 class IclViewModel(
@@ -107,13 +127,32 @@ class IclViewModel(
                 iclRepository.userClientId,
                 iclRepository.localClickOption,
                 iclRepository.isDeleteExif,
-            ) { uploader, clientId, option, checked ->
+                iclRepository.isCopyUrlAfterUpload,
+            ) { uploader, clientId, option, deleteExif, copyUrl ->
                 _uiState.update {
                     it.copy(
                         selectedUploader = UploaderName.valueOf(uploader),
                         userClientId = clientId,
                         localClickOption = LocalClickOption.valueOf(option),
-                        isDeleteExif = checked
+                        isDeleteExif = deleteExif,
+                        isCopyUrlAfterUpload = copyUrl
+                    )
+                }
+            }.collect()
+        }
+        viewModelScope.launch {
+            combine(
+                iclRepository.imgurAccessToken,
+                iclRepository.imgurAccountName,
+                iclRepository.imgurExpireAt,
+                iclRepository.useImgurAccount,
+            ) { token, name, expireAt, checked ->
+                _uiState.update {
+                    it.copy(
+                        imgurAccessToken = token,
+                        imgurAccountName = name,
+                        imgurExpireAt = expireAt,
+                        useImgurAccount = checked
                     )
                 }
             }.collect()
@@ -155,11 +194,27 @@ class IclViewModel(
         }
     }
 
+    // アップロード後にURLコピー判定　変更
+    override fun updateIsCopyUrlAfterUpload(checked: Boolean) {
+        viewModelScope.launch {
+            iclRepository.updateIsCopyUrlAfterUpload(checked)
+        }
+    }
+
     // マッシュルーム判別
     override fun setIsMushroom(boolean: Boolean) {
         _uiState.update {
             it.copy(
                 isMushroom = boolean
+            )
+        }
+    }
+
+    // シェアボタン起動判別
+    override fun setIsShared(boolean: Boolean) {
+        _uiState.update {
+            it.copy(
+                isShared = boolean
             )
         }
     }
@@ -173,6 +228,15 @@ class IclViewModel(
         }
     }
 
+    // ダイアログ開く
+    override fun openConfirmDialog(dialogOptions: DialogOptions) {
+        _uiState.update {
+            it.copy(
+                confirmDialogOptions = dialogOptions
+            )
+        }
+    }
+
     // ダイアログ閉じる
     override fun closeDialog() {
         _uiState.update {
@@ -182,9 +246,18 @@ class IclViewModel(
         }
     }
 
+    // ダイアログ閉じる
+    override fun closeConfirmDialog() {
+        _uiState.update {
+            it.copy(
+                confirmDialogOptions = DialogOptions()
+            )
+        }
+    }
+
     // 画像選択
     override fun onImagesSelected(context: Context, uris: List<Uri>, navController: NavController) {
-        if (uris.size > 6) {
+        if (uris.size > 5) {
             openDialog(
                 DialogOptions(
                     isOpen = true,
@@ -278,7 +351,7 @@ class IclViewModel(
                     )
                 )
             }
-            if (_uiState.value.selectedUploader == UploaderName.Imgur) {
+            if (_uiState.value.selectedUploader == UploaderName.Imgur && !_uiState.value.useImgurAccount) {
                 val isOk: Boolean = iclRepository.checkImgurCredits()
                 if (!isOk) {
                     _uiState.update {
@@ -309,14 +382,26 @@ class IclViewModel(
             }.onFailure {
                 // 失敗時Dialog
                 Log.e("IclViewModel", "Upload failed: ${it.message}")
-                _uiState.update {
-                    it.copy(
-                        dialogOptions = DialogOptions(
-                            isOpen = true,
-                            title = R.string.dialog_title_upload_error,
-                            body = R.string.dialog_body_upload_error,
+                if (_uiState.value.selectedUploader == UploaderName.Imgur && _uiState.value.useImgurAccount) {
+                    _uiState.update {
+                        it.copy(
+                            dialogOptions = DialogOptions(
+                                isOpen = true,
+                                title = R.string.dialog_title_upload_error,
+                                body = R.string.dialog_body_imgur_token_expire,
+                            )
                         )
-                    )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            dialogOptions = DialogOptions(
+                                isOpen = true,
+                                title = R.string.dialog_title_upload_error,
+                                body = R.string.dialog_body_upload_error,
+                            )
+                        )
+                    }
                 }
                 _uiState.update { it.copy(nowLoadingOption = NowLoadingOptions()) }
                 onResult(emptyList())
@@ -393,9 +478,8 @@ class IclViewModel(
             )
         }
         viewModelScope.launch {
-            if (_uiState.value.selectedUploader == UploaderName.Imgur) {
+            if (_uiState.value.selectedUploader == UploaderName.Imgur && !item.useImgurAccount) {
                 val isOk: Boolean = iclRepository.checkImgurCredits()
-                Log.d("IclViewModel", "isOk: $isOk")
                 if (!isOk) {
                     _uiState.update {
                         it.copy(
@@ -412,13 +496,24 @@ class IclViewModel(
             }
             //
             val isSuccess: Boolean = iclRepository.deleteImgurItem(item)
-            Log.d("IclViewModel", "isSuccess: $isSuccess")
             if (isSuccess) {
                 iclRepository.updateLocalItem(
                     item.copy(
                         isDeleted = true,
                     )
                 )
+            } else if (item.useImgurAccount) {
+                _uiState.update {
+                    it.copy(
+                        dialogOptions = DialogOptions(
+                            isOpen = true,
+                            title = R.string.dialog_title_delete_error,
+                            body = R.string.dialog_body_imgur_token_expire,
+                        ),
+                        nowLoadingOption = NowLoadingOptions()
+                    )
+                }
+                return@launch;
             } else {
                 _uiState.update {
                     it.copy(
@@ -458,6 +553,107 @@ class IclViewModel(
                     nowLoadingOption = NowLoadingOptions()
                 )
             }
+        }
+    }
+
+    // 履歴アイテム削除 imgur削除済み
+    override fun deleteDeletedImgurItems() {
+        _uiState.update {
+            it.copy(
+                nowLoadingOption = NowLoadingOptions(
+                    isOpen = true,
+                    title = R.string.now_loading_delete
+                )
+            )
+        }
+        viewModelScope.launch {
+            _uiState.value.localItems.forEach {
+                if (it.uploader == UploaderName.Imgur.name && it.isDeleted) {
+                    iclRepository.deleteLocalItem(it)
+                }
+            }
+            _uiState.update {
+                it.copy(
+                    nowLoadingOption = NowLoadingOptions()
+                )
+            }
+        }
+    }
+
+    // 履歴アイテム削除 litterbox期限切れ
+    override fun deleteExpiredLitterboxItems() {
+        _uiState.update {
+            it.copy(
+                nowLoadingOption = NowLoadingOptions(
+                    isOpen = true,
+                    title = R.string.now_loading_delete
+                )
+            )
+        }
+        val nowTime = System.currentTimeMillis()
+        viewModelScope.launch {
+            _uiState.value.localItems.forEach {
+                if (it.uploader == UploaderName.Litterbox.name && it.deleteAt !== null && it.deleteAt < nowTime) {
+                    iclRepository.deleteLocalItem(it)
+                }
+            }
+            _uiState.update {
+                it.copy(
+                    nowLoadingOption = NowLoadingOptions()
+                )
+            }
+        }
+    }
+
+    // 履歴アイテム削除 全て
+    override fun deleteAllLocalItems() {
+        _uiState.update {
+            it.copy(
+                nowLoadingOption = NowLoadingOptions(
+                    isOpen = true,
+                    title = R.string.now_loading_delete
+                )
+            )
+        }
+        viewModelScope.launch {
+            _uiState.value.localItems.forEach {
+                iclRepository.deleteLocalItem(it)
+            }
+            _uiState.update {
+                it.copy(
+                    nowLoadingOption = NowLoadingOptions()
+                )
+            }
+        }
+    }
+
+    // imgur アカウント情報更新
+    override fun updateImgurAccountData(imgurAccountData: ImgurAccountData) {
+        viewModelScope.launch {
+            if (imgurAccountData.accessToken != null) {
+                iclRepository.updateImgurAccessToken(imgurAccountData.accessToken)
+            }
+            if (imgurAccountData.name != null) {
+                iclRepository.updateImgurAccountName(imgurAccountData.name)
+            }
+            if (imgurAccountData.expireAt != null) {
+                iclRepository.updateImgurExpireAt(imgurAccountData.expireAt)
+            }
+        }
+    }
+
+    // imgur アカウント情報更新
+    override fun deleteImgurAccountData() {
+        viewModelScope.launch {
+            iclRepository.updateImgurAccessToken("")
+            iclRepository.updateImgurAccountName("")
+            iclRepository.updateImgurExpireAt(0)
+        }
+    }
+
+    override fun updateUseImgurAccount(boolean: Boolean) {
+        viewModelScope.launch {
+            iclRepository.updateUseImgurAccount(boolean)
         }
     }
 
@@ -502,6 +698,16 @@ class MockIclViewModel : BaseIclViewModel {
 
     override fun deleteLocalItem(item: LocalItem) {}
     override fun deleteImgurItem(item: LocalItem) {}
+    override fun deleteDeletedImgurItems() {}
+    override fun deleteExpiredLitterboxItems() {}
+    override fun deleteAllLocalItems() {}
+    override fun updateIsCopyUrlAfterUpload(checked: Boolean) {}
+    override fun setIsShared(boolean: Boolean) {}
+    override fun updateImgurAccountData(imgurAccountData: ImgurAccountData) {}
+    override fun deleteImgurAccountData() {}
+    override fun updateUseImgurAccount(boolean: Boolean) {}
+    override fun openConfirmDialog(dialogOptions: DialogOptions) {}
+    override fun closeConfirmDialog() {}
 
     fun updateSelectedFiles(files: List<Uri>) {
         _uiState.update { it.copy(selectedFiles = files) }

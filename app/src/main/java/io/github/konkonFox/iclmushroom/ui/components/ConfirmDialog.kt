@@ -1,10 +1,13 @@
 package io.github.konkonFox.iclmushroom.ui.components
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -20,7 +23,7 @@ import androidx.compose.ui.window.Dialog
 import io.github.konkonFox.iclmushroom.R
 
 @Composable
-fun NoticeDialog(
+fun ConfirmDialog(
     @StringRes titleRes: Int,
     @StringRes bodyRes: Int,
     dynamicBody: String?,
@@ -39,7 +42,8 @@ fun NoticeDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
-                horizontalAlignment = Alignment.End
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = stringResource(titleRes),
@@ -60,12 +64,28 @@ fun NoticeDialog(
                         .fillMaxWidth()
                         .padding(8.dp)
                 )
-                TextButton(onClick = {
-                    onOk()
-                    closeFun()
-                }, modifier = Modifier.height(48.dp)) {
+                Button(
+                    onClick = {
+                        closeFun()
+                        onOk()
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .height(48.dp)
+                        .fillMaxWidth()
+                ) {
                     Text(
                         text = stringResource(R.string.btn_ok)
+                    )
+                }
+                TextButton(
+                    onClick = closeFun,
+                    modifier = Modifier
+                        .height(48.dp)
+                        .fillMaxWidth()
+                ) {
+                    Text(
+                        text = stringResource(R.string.btn_back)
                     )
                 }
             }
@@ -75,8 +95,8 @@ fun NoticeDialog(
 
 @Preview(showBackground = true)
 @Composable
-fun NoticeDialogPreview() {
-    NoticeDialog(
+fun ConfirmDialogPreview() {
+    ConfirmDialog(
         titleRes = R.string.dialog_title_upload_error,
         bodyRes = R.string.dialog_body_too_match,
         dynamicBody = null,

@@ -7,6 +7,7 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -23,13 +24,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Downloading
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,13 +56,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import io.github.konkonFox.iclmushroom.BaseIclViewModel
+import io.github.konkonFox.iclmushroom.DialogOptions
 import io.github.konkonFox.iclmushroom.IclUiState
 import io.github.konkonFox.iclmushroom.LocalClickOption
 import io.github.konkonFox.iclmushroom.MainActivity
@@ -59,6 +74,7 @@ import io.github.konkonFox.iclmushroom.MockIclViewModel
 import io.github.konkonFox.iclmushroom.R
 import io.github.konkonFox.iclmushroom.UploaderName
 import io.github.konkonFox.iclmushroom.data.LocalItem
+import io.github.konkonFox.iclmushroom.ui.components.ConfirmDialog
 import io.github.konkonFox.iclmushroom.ui.components.NoticeDialog
 import io.github.konkonFox.iclmushroom.ui.components.NowLoading
 import io.github.konkonFox.iclmushroom.ui.theme.ICLMushroomTheme
@@ -144,8 +160,8 @@ private fun Item(
 ) {
     val context = LocalContext.current
     val activity = context as? MainActivity
-    val clipboard = LocalClipboard.current
     var isDialogOpen by remember { mutableStateOf(false) }
+    val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
 
 
@@ -222,21 +238,35 @@ private fun Item(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = formatTimestampCompat(item.createdAt)
+                    text = formatTimestampCompat(item.createdAt),
+                    fontSize = 14.sp
                 )
                 if (item.deleteAt != null) {
                     Text(
-                        text = "-"
+                        text = "-",
+                        fontSize = 14.sp
                     )
                     Text(
-                        text = formatTimestampCompat(item.deleteAt)
+                        text = formatTimestampCompat(item.deleteAt),
+                        fontSize = 14.sp
                     )
                 }
             }
-
             Text(
-                text = item.link
+                text = item.link,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 14.sp
             )
+            if (item.useImgurAccount) {
+                Text(
+                    text = stringResource(R.string.authed),
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Right,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
     if (!uiState.nowLoadingOption.isOpen && isDialogOpen) {
@@ -256,6 +286,89 @@ private fun Item(
 }
 
 @Composable
+fun DropdownMenu(viewModel: BaseIclViewModel) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(
+        modifier = Modifier
+            .padding(8.dp)
+    ) {
+        IconButton(onClick = { expanded = !expanded }) {
+            Icon(Icons.Default.MoreVert, contentDescription = "More options")
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.btn_delete_imgur_from_histories)) },
+                onClick = {
+                    viewModel.openConfirmDialog(
+                        DialogOptions(
+                            isOpen = true,
+                            title = R.string.dialog_title_delete_confirm,
+                            body = R.string.dialog_body_delete_imgur_from_histories,
+                            dynamicBody = null,
+                            onOk = {
+                                expanded = false
+                                viewModel.deleteDeletedImgurItems()
+                            },
+                            closeFun = {
+                                expanded = false
+                                viewModel.closeConfirmDialog()
+                            }
+                        )
+                    )
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.btn_delete_litterbox_from_histories)) },
+                onClick = {
+                    viewModel.openConfirmDialog(
+                        DialogOptions(
+                            isOpen = true,
+                            title = R.string.dialog_title_delete_confirm,
+                            body = R.string.dialog_body_delete_litterbox_from_histories,
+                            dynamicBody = null,
+                            onOk = {
+                                expanded = false
+                                viewModel.deleteExpiredLitterboxItems()
+                            },
+                            closeFun = {
+                                expanded = false
+                                viewModel.closeConfirmDialog()
+                            }
+                        )
+                    )
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.btn_delete_all_from_histories)) },
+                onClick = {
+                    viewModel.openConfirmDialog(
+                        DialogOptions(
+                            isOpen = true,
+                            title = R.string.dialog_title_delete_confirm,
+                            body = R.string.dialog_body_delete_all_from_histories,
+                            dynamicBody = null,
+                            onOk = {
+                                expanded = false
+                                viewModel.deleteAllLocalItems()
+                            },
+                            closeFun = {
+                                expanded = false
+                                viewModel.closeConfirmDialog()
+                            }
+                        )
+                    )
+                }
+            )
+        }
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun HistoriesScreen(
     uiState: IclUiState,
     viewModel: BaseIclViewModel,
@@ -268,74 +381,103 @@ fun HistoriesScreen(
     )
     val nowTime: Long = System.currentTimeMillis()
 
-    HorizontalDivider(thickness = 1.dp)
-    Column(modifier = modifier) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.select_local_click_option),
+//    HorizontalDivider(thickness = 1.dp)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.primary,
+                ),
+                title = {
+                    Text(
+                        text = stringResource(R.string.histories_screen),
+                    )
+                },
+                actions = {
+                    DropdownMenu(viewModel)
+                },
             )
-            for (clickRadio in clickRadios) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .selectable(
+        },
+    ) { innerPadding ->
+        Column(modifier = Modifier.padding(innerPadding)) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.select_local_click_option),
+                )
+                for (clickRadio in clickRadios) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .selectable(
+                                selected = uiState.localClickOption == clickRadio.value,
+                                onClick = {
+                                    viewModel.updateLocalClickOption(clickRadio.value)
+                                },
+                                role = Role.RadioButton
+                            )
+                    ) {
+                        RadioButton(
                             selected = uiState.localClickOption == clickRadio.value,
                             onClick = {
                                 viewModel.updateLocalClickOption(clickRadio.value)
                             },
-                            role = Role.RadioButton
                         )
-                ) {
-                    RadioButton(
-                        selected = uiState.localClickOption == clickRadio.value,
-                        onClick = {
-                            viewModel.updateLocalClickOption(clickRadio.value)
-                        },
+                        Text(text = clickRadio.label)
+                    }
+                }
+
+            }
+            HorizontalDivider(thickness = 1.dp)
+            if (uiState.localItems.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.no_items),
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                items(uiState.localItems) { item ->
+                    Item(
+                        viewModel = viewModel,
+                        item = item,
+                        clickOption = uiState.localClickOption,
+                        isMushroom = uiState.isMushroom,
+                        uiState = uiState,
+                        nowTime = nowTime,
                     )
-                    Text(text = clickRadio.label)
+                    HorizontalDivider(thickness = 1.dp)
                 }
             }
-
         }
-        HorizontalDivider(thickness = 1.dp)
-        if (uiState.localItems.isEmpty()) {
-            Text(
-                text = stringResource(R.string.no_items),
-                modifier = Modifier.padding(16.dp)
+
+        if (uiState.nowLoadingOption.isOpen) {
+            NowLoading(
+                titleRes = uiState.nowLoadingOption.title
             )
-        }
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            items(uiState.localItems) { item ->
-                Item(
-                    viewModel = viewModel,
-                    item = item,
-                    clickOption = uiState.localClickOption,
-                    isMushroom = uiState.isMushroom,
-                    uiState = uiState,
-                    nowTime = nowTime,
-                )
-                HorizontalDivider(thickness = 1.dp)
-            }
-        }
-    }
+        } else if (uiState.confirmDialogOptions.isOpen) {
+            ConfirmDialog(
+                titleRes = uiState.confirmDialogOptions.title,
+                bodyRes = uiState.confirmDialogOptions.body,
+                dynamicBody = uiState.confirmDialogOptions.dynamicBody,
+                onOk = uiState.confirmDialogOptions.onOk,
+                closeFun = uiState.confirmDialogOptions.closeFun
+            )
+        } else if (uiState.dialogOptions.isOpen) {
+            NoticeDialog(
+                titleRes = uiState.dialogOptions.title,
+                bodyRes = uiState.dialogOptions.body,
+                dynamicBody = uiState.dialogOptions.dynamicBody,
+                onOk = {},
+                closeFun = { viewModel.closeDialog() }
+            )
 
-    if (uiState.nowLoadingOption.isOpen) {
-        NowLoading(
-            titleRes = uiState.nowLoadingOption.title
-        )
-    } else if (uiState.dialogOptions.isOpen) {
-        NoticeDialog(
-            titleRes = uiState.dialogOptions.title,
-            bodyRes = uiState.dialogOptions.body,
-            dynamicBody = uiState.dialogOptions.dynamicBody,
-            onClick = { viewModel.closeDialog() }
-        )
+        }
     }
 }
 

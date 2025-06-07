@@ -1,5 +1,6 @@
 package io.github.konkonFox.iclmushroom.ui.screen
 
+import android.content.ClipData
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,25 +9,30 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
@@ -43,10 +49,14 @@ import io.github.konkonFox.iclmushroom.UploaderName
 import io.github.konkonFox.iclmushroom.UploaderName.Catbox
 import io.github.konkonFox.iclmushroom.UploaderName.Imgur
 import io.github.konkonFox.iclmushroom.UploaderName.Litterbox
+import io.github.konkonFox.iclmushroom.model.ImgurAccountOAuth
 import io.github.konkonFox.iclmushroom.ui.components.LinkText
 import io.github.konkonFox.iclmushroom.ui.components.NoticeDialog
 import io.github.konkonFox.iclmushroom.ui.components.NowLoading
 import io.github.konkonFox.iclmushroom.ui.theme.ICLMushroomTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private data class ReduceOption(val label: String, val value: Int?)
 
@@ -100,6 +110,12 @@ fun UploadScreen(
         Catbox -> R.string.url_catbox_tos
         Litterbox -> R.string.url_litterbox_tos
     }
+    val isLoginImgur: Boolean =
+        uiState.selectedUploader == Imgur && uiState.imgurAccessToken.isNotEmpty()
+    val isValidImgurAccount: Boolean = uiState.imgurExpireAt > System.currentTimeMillis()
+    //
+    val clipboard = LocalClipboard.current
+    val coroutineScope = rememberCoroutineScope()
     //
 
     Column(modifier = modifier) {
@@ -133,7 +149,9 @@ fun UploadScreen(
                                 viewModel.updateSelectedUploader(uploaderName)
                             },
                         )
-                        Text(text = uploaderName.name)
+                        Text(
+                            text = uploaderName.name
+                        )
                     }
                 }
             }
@@ -171,27 +189,93 @@ fun UploadScreen(
             }
             HorizontalDivider(thickness = 1.dp)
 
+            // トグルボタン
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .selectable(
+                            selected = uiState.isDeleteExif,
+                            onClick = { viewModel.updateIsDeleteExif(!uiState.isDeleteExif) },
+                            role = Role.Switch
+                        ),
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .padding(16.dp)
-                    .selectable(
-                        selected = uiState.isDeleteExif,
-                        onClick = { viewModel.updateIsDeleteExif(!uiState.isDeleteExif) },
-                        role = Role.Checkbox
-                    ),
+                    ) {
+                    Text(
+                        text = stringResource(R.string.toggle_delete_exif),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = uiState.isDeleteExif,
+                        onCheckedChange = { it ->
+                            viewModel.updateIsDeleteExif(it)
+                        },
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .selectable(
+                            selected = uiState.isCopyUrlAfterUpload,
+                            onClick = { viewModel.updateIsCopyUrlAfterUpload(!uiState.isCopyUrlAfterUpload) },
+                            role = Role.Switch
+                        ),
 
-                ) {
-                Checkbox(
-                    checked = uiState.isDeleteExif,
-                    onCheckedChange = { it ->
-                        viewModel.updateIsDeleteExif(it)
+                    ) {
+                    Text(
+                        text = stringResource(R.string.toggle_copy_url_after_upload),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = uiState.isCopyUrlAfterUpload,
+                        onCheckedChange = { it ->
+                            viewModel.updateIsCopyUrlAfterUpload(it)
+                        },
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+                if (isLoginImgur) {
+                    if (isValidImgurAccount) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .selectable(
+                                    selected = uiState.useImgurAccount,
+                                    onClick = { viewModel.updateUseImgurAccount(!uiState.useImgurAccount) },
+                                    role = Role.Switch
+                                ),
+
+                            ) {
+                            Text(
+                                text = stringResource(R.string.toggle_use_imgur_account),
+                                modifier = Modifier.weight(1f)
+                            )
+                            Switch(
+                                checked = uiState.useImgurAccount && isValidImgurAccount,
+                                onCheckedChange = { it ->
+                                    viewModel.updateUseImgurAccount(it)
+                                },
+                                enabled = isValidImgurAccount,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    } else {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .wrapContentWidth(Alignment.End)
+                                .padding(top = 8.dp)
+                        ) {
+                            LinkText(
+                                text = stringResource(R.string.re_login_to_imgur),
+                                url = ImgurAccountOAuth.url,
+                            )
+                        }
                     }
-                )
-                Text(
-                    text = stringResource(R.string.checkbox_delete_exif)
-                )
+                }
             }
             HorizontalDivider(thickness = 1.dp)
 
@@ -225,11 +309,13 @@ fun UploadScreen(
         Column {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(8.dp).fillMaxWidth()
+                modifier = Modifier
+                    .padding(8.dp)
+                    .fillMaxWidth()
             ) {
                 LinkText(
-                    textRes = R.string.tos,
-                    urlRes = tomLinkRes
+                    text = stringResource(R.string.tos),
+                    url = stringResource(tomLinkRes)
                 )
                 Text(
                     text = stringResource(R.string.please_comply_with)
@@ -260,8 +346,19 @@ fun UploadScreen(
                             onResult = { list ->
                                 if (list.isEmpty()) return@uploadImages
                                 val activity = context as? MainActivity
-                                if (uiState.isMushroom && activity != null) {
-                                    val result = "\n" + list.joinToString("\n") + "\n"
+                                val result = list.joinToString("\n") + "\n"
+                                if (uiState.isCopyUrlAfterUpload) {
+                                    coroutineScope.launch {
+                                        clipboard.setClipEntry(
+                                            ClipData.newPlainText(result, result).toClipEntry()
+                                        )
+                                        if ((uiState.isMushroom || uiState.isShared) && activity != null) {
+                                            withContext(Dispatchers.Main) {
+                                                activity.returnResultToCaller(result)
+                                            }
+                                        }
+                                    }
+                                } else if ((uiState.isMushroom || uiState.isShared) && activity != null) {
                                     activity.returnResultToCaller(result)
                                 }
                             }
@@ -286,7 +383,8 @@ fun UploadScreen(
             titleRes = uiState.dialogOptions.title,
             bodyRes = uiState.dialogOptions.body,
             dynamicBody = uiState.dialogOptions.dynamicBody,
-            onClick = { viewModel.closeDialog() }
+            onOk = {},
+            closeFun = { viewModel.closeDialog() }
         )
     }
 }
