@@ -30,12 +30,13 @@ interface ImgurApi {
     suspend fun postImage(
         @Header("Authorization") authHeader: String,
         @Part image: MultipartBody.Part,
+        @Part("privacy") privacy: String = "hidden",
     ): ImgurUploadResponse
 
-    @DELETE("image/{deleteHash}")
+    @DELETE("image/{hash}")
     suspend fun deleteImage(
         @Header("Authorization") authHeader: String,
-        @Path("deleteHash") deleteHash: String,
+        @Path("hash") hash: String,
     ): ImgurDeleteResponse
 }
 

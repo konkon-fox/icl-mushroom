@@ -20,9 +20,13 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import io.github.konkonFox.iclmushroom.DialogOptions
 import io.github.konkonFox.iclmushroom.IclViewModel
+import io.github.konkonFox.iclmushroom.R
+import io.github.konkonFox.iclmushroom.data.ImgurAccountData
 import io.github.konkonFox.iclmushroom.ui.screen.HistoriesScreen
 import io.github.konkonFox.iclmushroom.ui.screen.HomeScreen
+import io.github.konkonFox.iclmushroom.ui.screen.SettingsScreen
 import io.github.konkonFox.iclmushroom.ui.screen.UploadScreen
 import io.github.konkonFox.iclmushroom.ui.theme.ICLMushroomTheme
 
@@ -30,13 +34,16 @@ import io.github.konkonFox.iclmushroom.ui.theme.ICLMushroomTheme
 enum class IclScreen {
     Home,
     Upload,
-    Histories
+    Histories,
+    Settings
 }
 
 @Composable
 fun IclApp(
     isMushroom: Boolean = false,
     isShared: Boolean = false,
+    isImgurCallback: Boolean = false,
+    imgurAccountData: ImgurAccountData = ImgurAccountData(),
     sharedUris: List<Uri> = emptyList(),
     iclViewModel: IclViewModel = viewModel(
         factory = IclViewModel.Factory
@@ -47,11 +54,24 @@ fun IclApp(
     LaunchedEffect(Unit) {
         iclViewModel.setIsMushroom(isMushroom)
         iclViewModel.setIsShared(isShared)
+        //
         if (isShared && sharedUris.isNotEmpty()) {
             iclViewModel.onImagesSelected(
                 uris = sharedUris,
                 context = context,
                 navController = navController
+            )
+            return@LaunchedEffect
+        }
+        if (isImgurCallback && imgurAccountData.accessToken !== null) {
+            iclViewModel.updateImgurAccountData(imgurAccountData)
+            iclViewModel.openDialog(
+                DialogOptions(
+                    isOpen = true,
+                    title = R.string.dialog_title_imgur_login,
+                    body = R.string.dialog_body_imgur_login,
+                    dynamicBody = null
+                )
             )
         }
     }
@@ -94,6 +114,18 @@ fun IclApp(
                 exitTransition = { slideOutHorizontally { it } }
             ) {
                 HistoriesScreen(
+                    uiState = iclViewModel.uiState.collectAsState().value,
+                    viewModel = iclViewModel,
+                    navController = navController,
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
+            composable(
+                route = IclScreen.Settings.name,
+                enterTransition = { slideInHorizontally { it } },
+                exitTransition = { slideOutHorizontally { it } }
+            ) {
+                SettingsScreen(
                     uiState = iclViewModel.uiState.collectAsState().value,
                     viewModel = iclViewModel,
                     navController = navController,

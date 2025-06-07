@@ -56,8 +56,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
@@ -72,6 +75,7 @@ import io.github.konkonFox.iclmushroom.R
 import io.github.konkonFox.iclmushroom.UploaderName
 import io.github.konkonFox.iclmushroom.data.LocalItem
 import io.github.konkonFox.iclmushroom.ui.components.ConfirmDialog
+import io.github.konkonFox.iclmushroom.ui.components.NoticeDialog
 import io.github.konkonFox.iclmushroom.ui.components.NowLoading
 import io.github.konkonFox.iclmushroom.ui.theme.ICLMushroomTheme
 import kotlinx.coroutines.launch
@@ -234,21 +238,35 @@ private fun Item(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = formatTimestampCompat(item.createdAt)
+                    text = formatTimestampCompat(item.createdAt),
+                    fontSize = 14.sp
                 )
                 if (item.deleteAt != null) {
                     Text(
-                        text = "-"
+                        text = "-",
+                        fontSize = 14.sp
                     )
                     Text(
-                        text = formatTimestampCompat(item.deleteAt)
+                        text = formatTimestampCompat(item.deleteAt),
+                        fontSize = 14.sp
                     )
                 }
             }
-
             Text(
-                text = item.link
+                text = item.link,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 14.sp
             )
+            if (item.useImgurAccount) {
+                Text(
+                    text = stringResource(R.string.authed),
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Right,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
     if (!uiState.nowLoadingOption.isOpen && isDialogOpen) {
@@ -284,7 +302,7 @@ fun DropdownMenu(viewModel: BaseIclViewModel) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.btn_delete_imgur_from_histories)) },
                 onClick = {
-                    viewModel.openDialog(
+                    viewModel.openConfirmDialog(
                         DialogOptions(
                             isOpen = true,
                             title = R.string.dialog_title_delete_confirm,
@@ -296,7 +314,7 @@ fun DropdownMenu(viewModel: BaseIclViewModel) {
                             },
                             closeFun = {
                                 expanded = false
-                                viewModel.closeDialog()
+                                viewModel.closeConfirmDialog()
                             }
                         )
                     )
@@ -305,7 +323,7 @@ fun DropdownMenu(viewModel: BaseIclViewModel) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.btn_delete_litterbox_from_histories)) },
                 onClick = {
-                    viewModel.openDialog(
+                    viewModel.openConfirmDialog(
                         DialogOptions(
                             isOpen = true,
                             title = R.string.dialog_title_delete_confirm,
@@ -317,7 +335,7 @@ fun DropdownMenu(viewModel: BaseIclViewModel) {
                             },
                             closeFun = {
                                 expanded = false
-                                viewModel.closeDialog()
+                                viewModel.closeConfirmDialog()
                             }
                         )
                     )
@@ -326,7 +344,7 @@ fun DropdownMenu(viewModel: BaseIclViewModel) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.btn_delete_all_from_histories)) },
                 onClick = {
-                    viewModel.openDialog(
+                    viewModel.openConfirmDialog(
                         DialogOptions(
                             isOpen = true,
                             title = R.string.dialog_title_delete_confirm,
@@ -338,7 +356,7 @@ fun DropdownMenu(viewModel: BaseIclViewModel) {
                             },
                             closeFun = {
                                 expanded = false
-                                viewModel.closeDialog()
+                                viewModel.closeConfirmDialog()
                             }
                         )
                     )
@@ -442,14 +460,23 @@ fun HistoriesScreen(
             NowLoading(
                 titleRes = uiState.nowLoadingOption.title
             )
-        } else if (uiState.dialogOptions.isOpen) {
+        } else if (uiState.confirmDialogOptions.isOpen) {
             ConfirmDialog(
+                titleRes = uiState.confirmDialogOptions.title,
+                bodyRes = uiState.confirmDialogOptions.body,
+                dynamicBody = uiState.confirmDialogOptions.dynamicBody,
+                onOk = uiState.confirmDialogOptions.onOk,
+                closeFun = uiState.confirmDialogOptions.closeFun
+            )
+        } else if (uiState.dialogOptions.isOpen) {
+            NoticeDialog(
                 titleRes = uiState.dialogOptions.title,
                 bodyRes = uiState.dialogOptions.body,
                 dynamicBody = uiState.dialogOptions.dynamicBody,
-                onOk = uiState.dialogOptions.onOk,
-                closeFun = uiState.dialogOptions.closeFun
+                onOk = {},
+                closeFun = { viewModel.closeDialog() }
             )
+
         }
     }
 }
