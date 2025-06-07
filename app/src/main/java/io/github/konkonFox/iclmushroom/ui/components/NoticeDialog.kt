@@ -24,11 +24,12 @@ fun NoticeDialog(
     @StringRes titleRes: Int,
     @StringRes bodyRes: Int,
     dynamicBody: String?,
-    onClick: () -> Unit,
+    onOk: () -> Unit,
+    closeFun: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Dialog(
-        onDismissRequest = {},
+        onDismissRequest = closeFun,
     ) {
         Card(
             modifier = modifier.fillMaxWidth()
@@ -59,7 +60,10 @@ fun NoticeDialog(
                         .fillMaxWidth()
                         .padding(8.dp)
                 )
-                TextButton(onClick = onClick, modifier = Modifier.height(48.dp)) {
+                TextButton(onClick = {
+                    onOk()
+                    closeFun()
+                }, modifier = Modifier.height(48.dp)) {
                     Text(
                         text = stringResource(R.string.btn_ok)
                     )
@@ -76,6 +80,7 @@ fun NoticeDialogPreview() {
         titleRes = R.string.dialog_title_upload_error,
         bodyRes = R.string.dialog_body_too_match,
         dynamicBody = null,
-        onClick = {}
+        onOk = {},
+        closeFun = {}
     )
 }

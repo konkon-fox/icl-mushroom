@@ -445,15 +445,14 @@ class IclRepository(
 
     // imgurから削除
     suspend fun deleteImgurItem(item: LocalItem): Boolean {
-        val isUsingImgurAccount: Boolean = useImgurAccount.first()
-        val authHeader = if (isUsingImgurAccount) {
+        val authHeader = if (item.useImgurAccount) {
             "Bearer ${imgurAccessToken.first()}"
         } else {
             val clientId: String = getClientId()
             "Client-ID $clientId"
         }
         try {
-            val hash = if (isUsingImgurAccount) {
+            val hash = if (item.useImgurAccount) {
                 item.imgurHash
             } else {
                 item.deleteHash

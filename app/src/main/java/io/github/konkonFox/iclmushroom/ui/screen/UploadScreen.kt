@@ -383,7 +383,8 @@ fun UploadScreen(
             titleRes = uiState.dialogOptions.title,
             bodyRes = uiState.dialogOptions.body,
             dynamicBody = uiState.dialogOptions.dynamicBody,
-            onClick = { viewModel.closeDialog() }
+            onOk = {},
+            closeFun = { viewModel.closeDialog() }
         )
     }
 }

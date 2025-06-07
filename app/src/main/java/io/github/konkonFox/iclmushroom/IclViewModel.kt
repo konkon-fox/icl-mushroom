@@ -65,6 +65,7 @@ data class IclUiState(
     val isDeleteExif: Boolean = false,
     val nowLoadingOption: NowLoadingOptions = NowLoadingOptions(),
     val dialogOptions: DialogOptions = DialogOptions(),
+    val confirmDialogOptions: DialogOptions = DialogOptions(),
     val localItems: List<LocalItem> = emptyList(),
     val localClickOption: LocalClickOption = LocalClickOption.Insert,
     val isMushroom: Boolean = false,
@@ -87,6 +88,8 @@ interface BaseIclViewModel {
     fun onImagesSelected(context: Context, uris: List<Uri>, navController: NavController)
     fun openDialog(dialogOptions: DialogOptions)
     fun closeDialog()
+    fun openConfirmDialog(dialogOptions: DialogOptions)
+    fun closeConfirmDialog()
     fun uploadImages(
         context: Context,
         navController: NavController,
@@ -225,11 +228,29 @@ class IclViewModel(
         }
     }
 
+    // ダイアログ開く
+    override fun openConfirmDialog(dialogOptions: DialogOptions) {
+        _uiState.update {
+            it.copy(
+                confirmDialogOptions = dialogOptions
+            )
+        }
+    }
+
     // ダイアログ閉じる
     override fun closeDialog() {
         _uiState.update {
             it.copy(
                 dialogOptions = DialogOptions()
+            )
+        }
+    }
+
+    // ダイアログ閉じる
+    override fun closeConfirmDialog() {
+        _uiState.update {
+            it.copy(
+                confirmDialogOptions = DialogOptions()
             )
         }
     }
@@ -457,7 +478,7 @@ class IclViewModel(
             )
         }
         viewModelScope.launch {
-            if (_uiState.value.selectedUploader == UploaderName.Imgur && !_uiState.value.useImgurAccount) {
+            if (_uiState.value.selectedUploader == UploaderName.Imgur && !item.useImgurAccount) {
                 val isOk: Boolean = iclRepository.checkImgurCredits()
                 if (!isOk) {
                     _uiState.update {
@@ -481,7 +502,7 @@ class IclViewModel(
                         isDeleted = true,
                     )
                 )
-            } else if (_uiState.value.useImgurAccount) {
+            } else if (item.useImgurAccount) {
                 _uiState.update {
                     it.copy(
                         dialogOptions = DialogOptions(
@@ -685,6 +706,8 @@ class MockIclViewModel : BaseIclViewModel {
     override fun updateImgurAccountData(imgurAccountData: ImgurAccountData) {}
     override fun deleteImgurAccountData() {}
     override fun updateUseImgurAccount(boolean: Boolean) {}
+    override fun openConfirmDialog(dialogOptions: DialogOptions) {}
+    override fun closeConfirmDialog() {}
 
     fun updateSelectedFiles(files: List<Uri>) {
         _uiState.update { it.copy(selectedFiles = files) }

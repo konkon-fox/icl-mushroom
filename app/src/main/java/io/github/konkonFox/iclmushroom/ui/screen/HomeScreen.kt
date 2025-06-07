@@ -164,7 +164,8 @@ fun HomeScreen(
             titleRes = uiState.dialogOptions.title,
             bodyRes = uiState.dialogOptions.body,
             dynamicBody = uiState.dialogOptions.dynamicBody,
-            onClick = { viewModel.closeDialog() }
+            onOk = {},
+            closeFun = { viewModel.closeDialog() }
         )
     } else if (isInformationDialog) {
         InformationDialog(
