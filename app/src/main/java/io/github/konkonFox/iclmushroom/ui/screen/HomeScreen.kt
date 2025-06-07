@@ -186,8 +186,8 @@ fun HomeScreen(
                     )
                 )
                 LinkText(
-                    textRes = R.string.github_releases_text,
-                    urlRes = R.string.github_releases_url,
+                    text = stringResource(R.string.github_releases_text),
+                    url = stringResource(R.string.github_releases_url),
                 )
 
             }

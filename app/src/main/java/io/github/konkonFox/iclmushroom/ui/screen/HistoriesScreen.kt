@@ -56,8 +56,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.toClipEntry
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
@@ -234,21 +237,35 @@ private fun Item(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = formatTimestampCompat(item.createdAt)
+                    text = formatTimestampCompat(item.createdAt),
+                    fontSize = 14.sp
                 )
                 if (item.deleteAt != null) {
                     Text(
-                        text = "-"
+                        text = "-",
+                        fontSize = 14.sp
                     )
                     Text(
-                        text = formatTimestampCompat(item.deleteAt)
+                        text = formatTimestampCompat(item.deleteAt),
+                        fontSize = 14.sp
                     )
                 }
             }
-
             Text(
-                text = item.link
+                text = item.link,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 14.sp
             )
+            if (item.useImgurAccount) {
+                Text(
+                    text = stringResource(R.string.authed),
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Right,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
     if (!uiState.nowLoadingOption.isOpen && isDialogOpen) {

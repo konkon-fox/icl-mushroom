@@ -17,4 +17,7 @@ data class LocalItem(
     val deleteAt: Long?,
     // 2
     val isVideo: Boolean = false,
+    // 3
+    val imgurHash: String? = null,
+    val useImgurAccount: Boolean = false,
 )

@@ -74,6 +74,7 @@ data class IclUiState(
     val imgurAccessToken: String = "",
     val imgurAccountName: String = "",
     val imgurExpireAt: Long = 0,
+    val useImgurAccount: Boolean = false,
 )
 
 interface BaseIclViewModel {
@@ -103,6 +104,7 @@ interface BaseIclViewModel {
     fun setIsShared(boolean: Boolean)
     fun updateImgurAccountData(imgurAccountData: ImgurAccountData)
     fun deleteImgurAccountData()
+    fun updateUseImgurAccount(boolean: Boolean)
 }
 
 class IclViewModel(
@@ -122,7 +124,7 @@ class IclViewModel(
                 iclRepository.userClientId,
                 iclRepository.localClickOption,
                 iclRepository.isDeleteExif,
-                iclRepository.isCopyUrlAfterUpload
+                iclRepository.isCopyUrlAfterUpload,
             ) { uploader, clientId, option, deleteExif, copyUrl ->
                 _uiState.update {
                     it.copy(
@@ -139,13 +141,15 @@ class IclViewModel(
             combine(
                 iclRepository.imgurAccessToken,
                 iclRepository.imgurAccountName,
-                iclRepository.imgurExpireAt
-            ) { token, name, expireAt ->
+                iclRepository.imgurExpireAt,
+                iclRepository.useImgurAccount,
+            ) { token, name, expireAt, checked ->
                 _uiState.update {
                     it.copy(
                         imgurAccessToken = token,
                         imgurAccountName = name,
-                        imgurExpireAt = expireAt
+                        imgurExpireAt = expireAt,
+                        useImgurAccount = checked
                     )
                 }
             }.collect()
@@ -326,7 +330,7 @@ class IclViewModel(
                     )
                 )
             }
-            if (_uiState.value.selectedUploader == UploaderName.Imgur) {
+            if (_uiState.value.selectedUploader == UploaderName.Imgur && !_uiState.value.useImgurAccount) {
                 val isOk: Boolean = iclRepository.checkImgurCredits()
                 if (!isOk) {
                     _uiState.update {
@@ -357,14 +361,26 @@ class IclViewModel(
             }.onFailure {
                 // 失敗時Dialog
                 Log.e("IclViewModel", "Upload failed: ${it.message}")
-                _uiState.update {
-                    it.copy(
-                        dialogOptions = DialogOptions(
-                            isOpen = true,
-                            title = R.string.dialog_title_upload_error,
-                            body = R.string.dialog_body_upload_error,
+                if (_uiState.value.selectedUploader == UploaderName.Imgur && _uiState.value.useImgurAccount) {
+                    _uiState.update {
+                        it.copy(
+                            dialogOptions = DialogOptions(
+                                isOpen = true,
+                                title = R.string.dialog_title_upload_error,
+                                body = R.string.dialog_body_imgur_token_expire,
+                            )
                         )
-                    )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            dialogOptions = DialogOptions(
+                                isOpen = true,
+                                title = R.string.dialog_title_upload_error,
+                                body = R.string.dialog_body_upload_error,
+                            )
+                        )
+                    }
                 }
                 _uiState.update { it.copy(nowLoadingOption = NowLoadingOptions()) }
                 onResult(emptyList())
@@ -441,7 +457,7 @@ class IclViewModel(
             )
         }
         viewModelScope.launch {
-            if (_uiState.value.selectedUploader == UploaderName.Imgur) {
+            if (_uiState.value.selectedUploader == UploaderName.Imgur && !_uiState.value.useImgurAccount) {
                 val isOk: Boolean = iclRepository.checkImgurCredits()
                 if (!isOk) {
                     _uiState.update {
@@ -465,6 +481,18 @@ class IclViewModel(
                         isDeleted = true,
                     )
                 )
+            } else if (_uiState.value.useImgurAccount) {
+                _uiState.update {
+                    it.copy(
+                        dialogOptions = DialogOptions(
+                            isOpen = true,
+                            title = R.string.dialog_title_delete_error,
+                            body = R.string.dialog_body_imgur_token_expire,
+                        ),
+                        nowLoadingOption = NowLoadingOptions()
+                    )
+                }
+                return@launch;
             } else {
                 _uiState.update {
                     it.copy(
@@ -602,6 +630,12 @@ class IclViewModel(
         }
     }
 
+    override fun updateUseImgurAccount(boolean: Boolean) {
+        viewModelScope.launch {
+            iclRepository.updateUseImgurAccount(boolean)
+        }
+    }
+
     //
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
@@ -650,6 +684,7 @@ class MockIclViewModel : BaseIclViewModel {
     override fun setIsShared(boolean: Boolean) {}
     override fun updateImgurAccountData(imgurAccountData: ImgurAccountData) {}
     override fun deleteImgurAccountData() {}
+    override fun updateUseImgurAccount(boolean: Boolean) {}
 
     fun updateSelectedFiles(files: List<Uri>) {
         _uiState.update { it.copy(selectedFiles = files) }

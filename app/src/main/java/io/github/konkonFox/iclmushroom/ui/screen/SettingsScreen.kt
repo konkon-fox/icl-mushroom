@@ -1,6 +1,5 @@
 package io.github.konkonFox.iclmushroom.ui.screen
 
-import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,17 +20,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import io.github.konkonFox.iclmushroom.BaseIclViewModel
 import io.github.konkonFox.iclmushroom.IclUiState
 import io.github.konkonFox.iclmushroom.MockIclViewModel
 import io.github.konkonFox.iclmushroom.R
-import io.github.konkonFox.iclmushroom.data.ImgurConfig
+import io.github.konkonFox.iclmushroom.model.ImgurAccountOAuth
 import io.github.konkonFox.iclmushroom.ui.components.ListButton
 import io.github.konkonFox.iclmushroom.ui.components.TextInputDialog
-import io.github.konkonFox.iclmushroom.ui.components.openCustomTab
 import io.github.konkonFox.iclmushroom.ui.theme.ICLMushroomTheme
 
 
@@ -47,7 +44,6 @@ fun SettingsScreen(
     var isImgurInputDialog by remember { mutableStateOf(false) }
     val isLogin: Boolean =
         uiState.imgurAccessToken.isNotEmpty() && uiState.imgurExpireAt > System.currentTimeMillis()
-    Log.d("SettingsScreen", uiState.imgurExpireAt.toString())
 
     Column(
         modifier = modifier.fillMaxSize()
@@ -78,14 +74,7 @@ fun SettingsScreen(
             ListButton(
                 textRes = R.string.btn_login_to_imgur,
                 onClick = {
-                    val clientId = ImgurConfig.getClientId()
-                    val url = "https://api.imgur.com/oauth2/authorize".toUri()
-                        .buildUpon()
-                        .appendQueryParameter("client_id", clientId)
-                        .appendQueryParameter("response_type", "token")
-                        .appendQueryParameter("state", "state")
-                        .build().toString()
-                    openCustomTab(context, url)
+                    ImgurAccountOAuth.open(context)
                 },
             )
         }

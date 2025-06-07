@@ -36,6 +36,7 @@
     <string name="dialog_body_delete_litterbox_from_histories">期限切れのLitterbox画像を履歴から削除しますか？</string>
     <string name="dialog_body_delete_all_from_histories">全ての画像を履歴から削除しますか？</string>
     <string name="dialog_body_imgur_login">Imgurへのログインに成功しました。</string>
+    <string name="dialog_body_imgur_token_expire">Imgurへの接続が不安定か、再ログインが必要です。</string>
     <string name="now_loading_upload">アップロード中</string>
     <string name="now_loading_delete">削除中</string>
     <string name="select_local_click_option">タップ時の動作</string>
@@ -45,6 +46,7 @@
     <string name="radio_copy">クリップボードにコピー</string>
     <string name="toggle_delete_exif">Exifを削除(一部)</string>
     <string name="toggle_copy_url_after_upload">アップロード時にURLをコピー</string>
+    <string name="toggle_use_imgur_account">Imgurアカウントを使用</string>
     <string name="input_imgur_client_id">Imgur ClientID を入力</string>
     <string name="label_imgur_client_id">Imgur ClientID</string>
     <string name="tos">利用規約</string>
@@ -56,4 +58,6 @@
     <string name="github_releases_url">https://github.com/konkon-fox/icl-mushroom/releases</string>
     <string name="github_releases_text">更新情報を確認する</string>
     <string name="login_by">としてログイン中</string>
+    <string name="re_login_to_imgur">Imgurに再ログイン</string>
+    <string name="authed">Authed</string>
 </resources>

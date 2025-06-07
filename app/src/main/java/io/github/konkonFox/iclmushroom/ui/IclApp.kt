@@ -1,7 +1,6 @@
 package io.github.konkonFox.iclmushroom.ui
 
 import android.net.Uri
-import android.util.Log
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.WindowInsets
@@ -65,7 +64,6 @@ fun IclApp(
             return@LaunchedEffect
         }
         if (isImgurCallback && imgurAccountData.accessToken !== null) {
-            Log.d("IclApp", imgurAccountData.toString())
             iclViewModel.updateImgurAccountData(imgurAccountData)
             iclViewModel.openDialog(
                 DialogOptions(

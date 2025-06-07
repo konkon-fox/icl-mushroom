@@ -40,6 +40,7 @@ class IclRepository(
         val IMGUR_ACCESS_TOKEN = stringPreferencesKey("imgur_access_token")
         val IMGUR_ACCOUNT_NAME = stringPreferencesKey("imgur_account_name")
         val IMGUR_EXPIRE_AT = longPreferencesKey("imgur_expire_at")
+        val USE_IMGUR_ACCOUNT = booleanPreferencesKey("use_imgur_account")
         const val TAG = "IclRepository"
     }
 
@@ -155,6 +156,20 @@ class IclRepository(
             preferences[IMGUR_EXPIRE_AT] ?: 0 // デフォルト値
         }
 
+    // use imgur account の取得
+    val useImgurAccount: Flow<Boolean> = dataStore.data
+        .catch {
+            if (it is IOException) {
+                Log.e(TAG, "Error reading preferences.", it)
+                emit(emptyPreferences())
+            } else {
+                throw it
+            }
+        }
+        .map { preferences ->
+            preferences[USE_IMGUR_ACCOUNT] == true // デフォルト値
+        }
+
     // selected_uploader の保存
     suspend fun updateSelectedUploader(uploader: UploaderName) {
         dataStore.edit { preferences ->
@@ -211,6 +226,13 @@ class IclRepository(
         }
     }
 
+    // use imgur account の保存
+    suspend fun updateUseImgurAccount(checked: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[USE_IMGUR_ACCOUNT] = checked
+        }
+    }
+
     // 画像アップロード統括
     suspend fun uploadImages(
         mediaFiles: List<MediaFile>,
@@ -252,7 +274,7 @@ class IclRepository(
             val response: ImgurCreditsResponse = ImgurApiService.api.getCredits(
                 authHeader = authHeader
             )
-            return response.data.userRemaining > 100 && response.data.clientRemaining > 1250
+            return response.data.userRemaining > 75 && response.data.clientRemaining > 1250
         } catch (e: HttpException) {
             Log.e(
                 "IclRepository",
@@ -274,7 +296,12 @@ class IclRepository(
         val localItems = mutableListOf<LocalItem>()
         val uploader = selectedUploader.first()
         val clientId: String = getClientId()
-        val authHeader = "Client-ID $clientId"
+        val isUsingImgurAccount: Boolean = useImgurAccount.first()
+        val authHeader = if (isUsingImgurAccount) {
+            "Bearer ${imgurAccessToken.first()}"
+        } else {
+            "Client-ID $clientId"
+        }
         // upload
         mediaFiles.forEach { mediaFile ->
             val (isVideo, file) = mediaFile
@@ -294,7 +321,9 @@ class IclRepository(
                         deleteHash = response.data.deleteHash,
                         createdAt = System.currentTimeMillis(),
                         deleteAt = null,
-                        isVideo = isVideo
+                        isVideo = isVideo,
+                        imgurHash = response.data.id,
+                        useImgurAccount = isUsingImgurAccount,
                     )
                 )
             } catch (e: HttpException) {
@@ -339,7 +368,9 @@ class IclRepository(
                         deleteHash = null,
                         createdAt = System.currentTimeMillis(),
                         deleteAt = null,
-                        isVideo = isVideo
+                        isVideo = isVideo,
+                        imgurHash = null,
+                        useImgurAccount = false,
                     )
                 )
             } catch (e: HttpException) {
@@ -371,7 +402,6 @@ class IclRepository(
             try {
                 val mimeType =
                     URLConnection.guessContentTypeFromName(file.name) ?: "application/octet-stream"
-                Log.d("IclRepository", mimeType)
                 val requestFile = file.asRequestBody(mimeType.toMediaType())
                 val reqTypePart = MultipartBody.Part.createFormData("reqtype", "fileupload")
                 val timePart = MultipartBody.Part.createFormData("time", "${expiresHour}h")
@@ -392,7 +422,9 @@ class IclRepository(
                         deleteHash = null,
                         createdAt = createdAt,
                         deleteAt = deleteAt,
-                        isVideo = isVideo
+                        isVideo = isVideo,
+                        imgurHash = null,
+                        useImgurAccount = false,
                     )
                 )
             } catch (e: HttpException) {
@@ -413,16 +445,24 @@ class IclRepository(
 
     // imgurから削除
     suspend fun deleteImgurItem(item: LocalItem): Boolean {
-        val clientId: String = getClientId()
-        val authHeader = "Client-ID $clientId"
+        val isUsingImgurAccount: Boolean = useImgurAccount.first()
+        val authHeader = if (isUsingImgurAccount) {
+            "Bearer ${imgurAccessToken.first()}"
+        } else {
+            val clientId: String = getClientId()
+            "Client-ID $clientId"
+        }
         try {
-            val deleteHash = item.deleteHash
-            if (deleteHash == null) throw Exception("no deleteHash")
+            val hash = if (isUsingImgurAccount) {
+                item.imgurHash
+            } else {
+                item.deleteHash
+            }
+            if (hash == null) throw Exception("no deleteHash")
             val response: ImgurDeleteResponse = ImgurApiService.api.deleteImage(
                 authHeader = authHeader,
-                deleteHash = deleteHash
+                hash = hash,
             )
-            Log.d("IclRepository", "response $response")
             return response.success
         } catch (e: HttpException) {
             Log.e(
