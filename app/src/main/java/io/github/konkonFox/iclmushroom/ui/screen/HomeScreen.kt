@@ -138,7 +138,7 @@ fun getClipboardUri(context: Context): Uri? {
             }
         }
     }
-    return null;
+    return null
 }
 
 
