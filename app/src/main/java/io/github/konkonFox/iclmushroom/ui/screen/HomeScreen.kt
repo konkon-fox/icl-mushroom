@@ -1,5 +1,8 @@
 package io.github.konkonFox.iclmushroom.ui.screen
 
+import android.annotation.SuppressLint
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -35,6 +38,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import io.github.konkonFox.iclmushroom.BaseIclViewModel
 import io.github.konkonFox.iclmushroom.BuildConfig
+import io.github.konkonFox.iclmushroom.DialogOptions
 import io.github.konkonFox.iclmushroom.IclUiState
 import io.github.konkonFox.iclmushroom.MockIclViewModel
 import io.github.konkonFox.iclmushroom.R
@@ -120,8 +124,26 @@ fun UploadButton(viewModel: BaseIclViewModel, navController: NavController) {
     )
 }
 
+fun getClipboardUri(context: Context): Uri? {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clipData = clipboard.primaryClip
+
+    if (clipData != null && clipData.itemCount > 0) {
+        val item = clipData.getItemAt(0)
+        val uri = item.uri
+        if (uri != null) {
+            val mimeType = context.contentResolver.getType(uri)
+            if (mimeType?.startsWith("image/") == true) {
+                return uri
+            }
+        }
+    }
+    return null;
+}
+
 
 //@OptIn(ExperimentalMaterial3Api::class)
+@SuppressLint("ServiceCast")
 @Composable
 fun HomeScreen(
     uiState: IclUiState,
@@ -129,6 +151,7 @@ fun HomeScreen(
     navController: NavController,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     var isInformationDialog by remember { mutableStateOf(false) }
 
     Column(
@@ -136,6 +159,30 @@ fun HomeScreen(
     ) {
         HorizontalDivider(thickness = 1.dp)
         UploadButton(viewModel, navController)
+        HorizontalDivider(thickness = 1.dp)
+        ListButton(
+            textRes = R.string.btn_upload_from_clipboard,
+            onClick = {
+                val uri = getClipboardUri(context)
+                if (uri == null) {
+                    viewModel.openDialog(
+                        DialogOptions(
+                            isOpen = true,
+                            title = R.string.dialog_title_clipboard_error,
+                            body = R.string.dialog_body_clipboard_error,
+                            dynamicBody = null
+                        )
+                    )
+                } else {
+                    viewModel.onImagesSelected(
+                        context = context,
+                        uris = listOf(uri),
+                        navController = navController
+                    )
+                }
+
+            },
+        )
         HorizontalDivider(thickness = 1.dp)
         ListButton(
             textRes = R.string.btn_upload_history,
