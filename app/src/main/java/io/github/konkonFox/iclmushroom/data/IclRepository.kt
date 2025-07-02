@@ -296,9 +296,9 @@ class IclRepository(
         val localItems = mutableListOf<LocalItem>()
         val uploader = selectedUploader.first()
         val clientId: String = getClientId()
-        val isUsingImgurAccount: Boolean = useImgurAccount.first()
         val token = imgurAccessToken.first()
-        val authHeader = if (isUsingImgurAccount && token.isNotEmpty()) {
+        val isUsingImgurAccount: Boolean = useImgurAccount.first() && token.isNotEmpty()
+        val authHeader = if (isUsingImgurAccount) {
             "Bearer $token"
         } else {
             "Client-ID $clientId"
@@ -446,18 +446,10 @@ class IclRepository(
 
     // imgurから削除
     suspend fun deleteImgurItem(item: LocalItem): Boolean {
-        val authHeader = if (item.useImgurAccount) {
-            "Bearer ${imgurAccessToken.first()}"
-        } else {
-            val clientId: String = getClientId()
-            "Client-ID $clientId"
-        }
+        val clientId: String = getClientId()
+        val authHeader = "Client-ID $clientId"
         try {
-            val hash = if (item.useImgurAccount) {
-                item.imgurHash
-            } else {
-                item.deleteHash
-            }
+            val hash = item.deleteHash
             if (hash == null) throw Exception("no deleteHash")
             val response: ImgurDeleteResponse = ImgurApiService.api.deleteImage(
                 authHeader = authHeader,
