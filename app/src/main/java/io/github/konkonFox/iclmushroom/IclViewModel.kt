@@ -645,6 +645,7 @@ class IclViewModel(
     // imgur アカウント情報更新
     override fun deleteImgurAccountData() {
         viewModelScope.launch {
+            updateUseImgurAccount(false)
             iclRepository.updateImgurAccessToken("")
             iclRepository.updateImgurAccountName("")
             iclRepository.updateImgurExpireAt(0)

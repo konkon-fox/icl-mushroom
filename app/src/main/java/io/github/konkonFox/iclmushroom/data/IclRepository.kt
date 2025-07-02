@@ -297,8 +297,9 @@ class IclRepository(
         val uploader = selectedUploader.first()
         val clientId: String = getClientId()
         val isUsingImgurAccount: Boolean = useImgurAccount.first()
-        val authHeader = if (isUsingImgurAccount) {
-            "Bearer ${imgurAccessToken.first()}"
+        val token = imgurAccessToken.first()
+        val authHeader = if (isUsingImgurAccount && token.isNotEmpty()) {
+            "Bearer $token"
         } else {
             "Client-ID $clientId"
         }
