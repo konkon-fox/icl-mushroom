@@ -26,7 +26,6 @@ import io.github.konkonFox.iclmushroom.BaseIclViewModel
 import io.github.konkonFox.iclmushroom.IclUiState
 import io.github.konkonFox.iclmushroom.MockIclViewModel
 import io.github.konkonFox.iclmushroom.R
-import io.github.konkonFox.iclmushroom.model.ImgurAccountOAuth
 import io.github.konkonFox.iclmushroom.ui.components.ListButton
 import io.github.konkonFox.iclmushroom.ui.components.TextInputDialog
 import io.github.konkonFox.iclmushroom.ui.theme.ICLMushroomTheme
@@ -70,13 +69,6 @@ fun SettingsScreen(
                     fontSize = 12.sp
                 )
             }
-        } else {
-            ListButton(
-                textRes = R.string.btn_login_to_imgur,
-                onClick = {
-                    ImgurAccountOAuth.open(context)
-                },
-            )
         }
         HorizontalDivider(thickness = 1.dp)
         ListButton(
