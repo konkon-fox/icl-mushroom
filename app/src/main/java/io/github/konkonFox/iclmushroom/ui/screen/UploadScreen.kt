@@ -9,14 +9,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,7 +47,6 @@ import io.github.konkonFox.iclmushroom.UploaderName
 import io.github.konkonFox.iclmushroom.UploaderName.Catbox
 import io.github.konkonFox.iclmushroom.UploaderName.Imgur
 import io.github.konkonFox.iclmushroom.UploaderName.Litterbox
-import io.github.konkonFox.iclmushroom.model.ImgurAccountOAuth
 import io.github.konkonFox.iclmushroom.ui.components.LinkText
 import io.github.konkonFox.iclmushroom.ui.components.NoticeDialog
 import io.github.konkonFox.iclmushroom.ui.components.NowLoading
@@ -236,45 +233,6 @@ fun UploadScreen(
                         },
                         modifier = Modifier.padding(start = 8.dp)
                     )
-                }
-                if (isLoginImgur) {
-                    if (isValidImgurAccount) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .selectable(
-                                    selected = uiState.useImgurAccount,
-                                    onClick = { viewModel.updateUseImgurAccount(!uiState.useImgurAccount) },
-                                    role = Role.Switch
-                                ),
-
-                            ) {
-                            Text(
-                                text = stringResource(R.string.toggle_use_imgur_account),
-                                modifier = Modifier.weight(1f)
-                            )
-                            Switch(
-                                checked = uiState.useImgurAccount && isValidImgurAccount,
-                                onCheckedChange = { it ->
-                                    viewModel.updateUseImgurAccount(it)
-                                },
-                                enabled = isValidImgurAccount,
-                                modifier = Modifier.padding(start = 8.dp)
-                            )
-                        }
-                    } else {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .wrapContentWidth(Alignment.End)
-                                .padding(top = 8.dp)
-                        ) {
-                            LinkText(
-                                text = stringResource(R.string.re_login_to_imgur),
-                                url = ImgurAccountOAuth.url,
-                            )
-                        }
-                    }
                 }
             }
             HorizontalDivider(thickness = 1.dp)

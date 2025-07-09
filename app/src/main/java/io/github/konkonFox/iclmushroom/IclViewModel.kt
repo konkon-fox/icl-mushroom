@@ -478,7 +478,7 @@ class IclViewModel(
             )
         }
         viewModelScope.launch {
-            if (_uiState.value.selectedUploader == UploaderName.Imgur && !item.useImgurAccount) {
+            if (_uiState.value.selectedUploader == UploaderName.Imgur) {
                 val isOk: Boolean = iclRepository.checkImgurCredits()
                 if (!isOk) {
                     _uiState.update {
@@ -502,18 +502,6 @@ class IclViewModel(
                         isDeleted = true,
                     )
                 )
-            } else if (item.useImgurAccount) {
-                _uiState.update {
-                    it.copy(
-                        dialogOptions = DialogOptions(
-                            isOpen = true,
-                            title = R.string.dialog_title_delete_error,
-                            body = R.string.dialog_body_imgur_token_expire,
-                        ),
-                        nowLoadingOption = NowLoadingOptions()
-                    )
-                }
-                return@launch;
             } else {
                 _uiState.update {
                     it.copy(
@@ -645,6 +633,7 @@ class IclViewModel(
     // imgur アカウント情報更新
     override fun deleteImgurAccountData() {
         viewModelScope.launch {
+            updateUseImgurAccount(false)
             iclRepository.updateImgurAccessToken("")
             iclRepository.updateImgurAccountName("")
             iclRepository.updateImgurExpireAt(0)

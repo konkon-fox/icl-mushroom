@@ -2,6 +2,7 @@
     <string name="app_name">ICL Mushroom</string>
     <string name="dummy"> </string>
     <string name="btn_upload">画像をアップロード</string>
+    <string name="btn_upload_from_clipboard">クリップボードの画像をアップロード</string>
     <string name="btn_upload_history">アップロード履歴</string>
     <string name="btn_settings">設定</string>
     <string name="btn_imgur_settings">Imgur ClientID登録 (※高度な設定)</string>
@@ -27,6 +28,7 @@
     <string name="dialog_title_delete_error">削除エラー</string>
     <string name="dialog_title_delete_confirm">削除確認</string>
     <string name="dialog_title_imgur_login">Imgurログイン成功</string>
+    <string name="dialog_title_clipboard_error">貼り付けエラー</string>
     <string name="dialog_body_upload_error">アップロード処理に失敗しました。</string>
     <string name="dialog_body_delete_error">削除に失敗しました。</string>
     <string name="dialog_body_too_match">画像は最大5枚まで添付できます。</string>
@@ -37,6 +39,7 @@
     <string name="dialog_body_delete_all_from_histories">全ての画像を履歴から削除しますか？</string>
     <string name="dialog_body_imgur_login">Imgurへのログインに成功しました。</string>
     <string name="dialog_body_imgur_token_expire">Imgurへの接続が不安定か、再ログインが必要です。</string>
+    <string name="dialog_body_clipboard_error">クリップボードに貼り付け可能な画像がありません。</string>
     <string name="now_loading_upload">アップロード中</string>
     <string name="now_loading_delete">削除中</string>
     <string name="select_local_click_option">タップ時の動作</string>
