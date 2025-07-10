@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import io.github.konkonFox.iclmushroom.ImageLauncherType
 import io.github.konkonFox.iclmushroom.LocalClickOption
 import io.github.konkonFox.iclmushroom.UploaderName
 import io.github.konkonFox.iclmushroom.model.ImgurCreditsResponse
@@ -41,6 +42,7 @@ class IclRepository(
         val IMGUR_ACCOUNT_NAME = stringPreferencesKey("imgur_account_name")
         val IMGUR_EXPIRE_AT = longPreferencesKey("imgur_expire_at")
         val USE_IMGUR_ACCOUNT = booleanPreferencesKey("use_imgur_account")
+        val IMAGE_LAUNCHER_TYPE = stringPreferencesKey("image_launcher_type")
         const val TAG = "IclRepository"
     }
 
@@ -170,6 +172,22 @@ class IclRepository(
             preferences[USE_IMGUR_ACCOUNT] == true // デフォルト値
         }
 
+    // image launcher type の取得
+    val imageLauncherType: Flow<ImageLauncherType> = dataStore.data
+        .catch {
+            if (it is IOException) {
+                Log.e(TAG, "Error reading preferences.", it)
+                emit(emptyPreferences())
+            } else {
+                throw it
+            }
+        }
+        .map { preferences ->
+            val name =
+                preferences[IMAGE_LAUNCHER_TYPE] ?: ImageLauncherType.PhotoPicker.name // デフォルト値
+            ImageLauncherType.valueOf(name)
+        }
+
     // selected_uploader の保存
     suspend fun updateSelectedUploader(uploader: UploaderName) {
         dataStore.edit { preferences ->
@@ -230,6 +248,14 @@ class IclRepository(
     suspend fun updateUseImgurAccount(checked: Boolean) {
         dataStore.edit { preferences ->
             preferences[USE_IMGUR_ACCOUNT] = checked
+        }
+    }
+
+
+    // image launcher typeの保存
+    suspend fun updateImageLauncherType(launcherType: ImageLauncherType) {
+        dataStore.edit { preferences ->
+            preferences[IMAGE_LAUNCHER_TYPE] = launcherType.name
         }
     }
 

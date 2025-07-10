@@ -63,4 +63,7 @@
     <string name="login_by">としてログイン中</string>
     <string name="re_login_to_imgur">Imgurに再ログイン</string>
     <string name="authed">Authed</string>
+    <string name="select_image_launcher_type">メディアピッカーの選択</string>
+    <string name="photo_picker">フォトピッカー</string>
+    <string name="legacy_picker">レガシーピッカー</string>
 </resources>

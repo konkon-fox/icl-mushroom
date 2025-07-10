@@ -40,6 +40,7 @@ import io.github.konkonFox.iclmushroom.BaseIclViewModel
 import io.github.konkonFox.iclmushroom.BuildConfig
 import io.github.konkonFox.iclmushroom.DialogOptions
 import io.github.konkonFox.iclmushroom.IclUiState
+import io.github.konkonFox.iclmushroom.ImageLauncherType
 import io.github.konkonFox.iclmushroom.MockIclViewModel
 import io.github.konkonFox.iclmushroom.R
 import io.github.konkonFox.iclmushroom.ui.IclScreen
@@ -101,13 +102,13 @@ fun UploadButton(viewModel: BaseIclViewModel, navController: NavController) {
 
     // Photo Picker ランチャー（API 33 以上向け）
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia()
+        contract = ActivityResultContracts.PickMultipleVisualMedia(5)
     ) { uris: List<Uri> ->
         viewModel.onImagesSelected(context, uris, navController)
     }
 
     val handleClick = {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && viewModel.uiState.value.imageLauncherType == ImageLauncherType.PhotoPicker) {
             // Android 13+ (API 33+) で Photo Picker を使用
             photoPickerLauncher.launch(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)

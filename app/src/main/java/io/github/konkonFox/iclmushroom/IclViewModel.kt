@@ -44,6 +44,11 @@ enum class LocalClickOption {
     Copy
 }
 
+enum class ImageLauncherType {
+    PhotoPicker,
+    Legacy
+}
+
 data class DialogOptions(
     val isOpen: Boolean = false,
     @StringRes val title: Int = R.string.dummy,
@@ -75,6 +80,7 @@ data class IclUiState(
     val imgurAccessToken: String = "",
     val imgurAccountName: String = "",
     val imgurExpireAt: Long = 0,
+    val imageLauncherType: ImageLauncherType = ImageLauncherType.PhotoPicker,
     val useImgurAccount: Boolean = false,
 )
 
@@ -108,6 +114,8 @@ interface BaseIclViewModel {
     fun updateImgurAccountData(imgurAccountData: ImgurAccountData)
     fun deleteImgurAccountData()
     fun updateUseImgurAccount(boolean: Boolean)
+
+    fun updateImageLauncherType(launcherType: ImageLauncherType)
 }
 
 class IclViewModel(
@@ -162,6 +170,13 @@ class IclViewModel(
                 .collect { items ->
                     _uiState.update { it.copy(localItems = items) }
                 }
+        }
+        viewModelScope.launch {
+            iclRepository.imageLauncherType.collect { launcherType ->
+                _uiState.update {
+                    it.copy(imageLauncherType = launcherType)
+                }
+            }
         }
     }
 
@@ -640,9 +655,17 @@ class IclViewModel(
         }
     }
 
+    // imgur アカウント使用判定更新
     override fun updateUseImgurAccount(boolean: Boolean) {
         viewModelScope.launch {
             iclRepository.updateUseImgurAccount(boolean)
+        }
+    }
+
+    // ランチャータイプ更新
+    override fun updateImageLauncherType(launcherType: ImageLauncherType) {
+        viewModelScope.launch {
+            iclRepository.updateImageLauncherType(launcherType)
         }
     }
 
@@ -697,6 +720,7 @@ class MockIclViewModel : BaseIclViewModel {
     override fun updateUseImgurAccount(boolean: Boolean) {}
     override fun openConfirmDialog(dialogOptions: DialogOptions) {}
     override fun closeConfirmDialog() {}
+    override fun updateImageLauncherType(launcherType: ImageLauncherType) {}
 
     fun updateSelectedFiles(files: List<Uri>) {
         _uiState.update { it.copy(selectedFiles = files) }

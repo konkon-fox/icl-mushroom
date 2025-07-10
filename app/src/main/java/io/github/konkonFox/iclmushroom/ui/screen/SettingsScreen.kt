@@ -1,10 +1,13 @@
 package io.github.konkonFox.iclmushroom.ui.screen
 
+import android.os.Build
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -16,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -24,12 +28,14 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import io.github.konkonFox.iclmushroom.BaseIclViewModel
 import io.github.konkonFox.iclmushroom.IclUiState
+import io.github.konkonFox.iclmushroom.ImageLauncherType
 import io.github.konkonFox.iclmushroom.MockIclViewModel
 import io.github.konkonFox.iclmushroom.R
 import io.github.konkonFox.iclmushroom.ui.components.ListButton
 import io.github.konkonFox.iclmushroom.ui.components.TextInputDialog
 import io.github.konkonFox.iclmushroom.ui.theme.ICLMushroomTheme
 
+private data class ImageLauncherTypeOption(val label: String, val value: ImageLauncherType)
 
 //@OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,11 +49,20 @@ fun SettingsScreen(
     var isImgurInputDialog by remember { mutableStateOf(false) }
     val isLogin: Boolean =
         uiState.imgurAccessToken.isNotEmpty() && uiState.imgurExpireAt > System.currentTimeMillis()
+    val imageLauncherTypeOptions = listOf(
+        ImageLauncherTypeOption(
+            stringResource(R.string.photo_picker),
+            ImageLauncherType.PhotoPicker
+        ),
+        ImageLauncherTypeOption(
+            stringResource(R.string.legacy_picker),
+            ImageLauncherType.Legacy
+        )
+    )
 
     Column(
         modifier = modifier.fillMaxSize()
     ) {
-        HorizontalDivider(thickness = 1.dp)
         if (isLogin) {
             ListButton(
                 textRes = R.string.btn_logout_to_imgur,
@@ -78,6 +93,39 @@ fun SettingsScreen(
             },
         )
         HorizontalDivider(thickness = 1.dp)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.select_image_launcher_type),
+                )
+                for (launcherType in imageLauncherTypeOptions) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .selectable(
+                                selected = uiState.imageLauncherType == launcherType.value,
+                                onClick = {
+                                    viewModel.updateImageLauncherType(launcherType.value)
+                                },
+                                role = Role.RadioButton
+                            )
+                    ) {
+                        RadioButton(
+                            selected = uiState.imageLauncherType == launcherType.value,
+                            onClick = {
+                                viewModel.updateImageLauncherType(launcherType.value)
+                            },
+                        )
+                        Text(
+                            text = launcherType.label
+                        )
+                    }
+                }
+            }
+            HorizontalDivider(thickness = 1.dp)
+        }
     }
 
     if (isImgurInputDialog) {
