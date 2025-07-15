@@ -108,14 +108,24 @@ fun UploadButton(viewModel: BaseIclViewModel, navController: NavController) {
     }
 
     val handleClick = {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && viewModel.uiState.value.imageLauncherType == ImageLauncherType.PhotoPicker) {
-            // Android 13+ (API 33+) で Photo Picker を使用
-            photoPickerLauncher.launch(
-                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+        if (viewModel.uiState.value.localItems.size >= 1000) {
+            viewModel.openDialog(
+                DialogOptions(
+                    isOpen = true,
+                    title = R.string.dialog_title_items_limit,
+                    body = R.string.dialog_body_items_limit,
+                )
             )
         } else {
-            // Android 12 以下では従来のドキュメントピッカーを使用
-            legacyLauncher.launch(arrayOf("image/*", "video/*"))
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && viewModel.uiState.value.imageLauncherType == ImageLauncherType.PhotoPicker) {
+                // Android 13+ (API 33+) で Photo Picker を使用
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                )
+            } else {
+                // Android 12 以下では従来のドキュメントピッカーを使用
+                legacyLauncher.launch(arrayOf("image/*", "video/*"))
+            }
         }
     }
 
@@ -164,6 +174,16 @@ fun HomeScreen(
         ListButton(
             textRes = R.string.btn_upload_from_clipboard,
             onClick = {
+                if (viewModel.uiState.value.localItems.size >= 1000) {
+                    viewModel.openDialog(
+                        DialogOptions(
+                            isOpen = true,
+                            title = R.string.dialog_title_items_limit,
+                            body = R.string.dialog_body_items_limit,
+                        )
+                    )
+                    return@ListButton
+                }
                 val uri = getClipboardUri(context)
                 if (uri == null) {
                     viewModel.openDialog(
