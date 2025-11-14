@@ -59,6 +59,8 @@ fun SettingsScreen(
             ImageLauncherType.Legacy
         )
     )
+    var isCatboxInputDialog by remember { mutableStateOf(false) }
+
 
     Column(
         modifier = modifier.fillMaxSize()
@@ -90,6 +92,13 @@ fun SettingsScreen(
             textRes = R.string.btn_imgur_settings,
             onClick = {
                 isImgurInputDialog = true
+            },
+        )
+        HorizontalDivider(thickness = 1.dp)
+        ListButton(
+            textRes = R.string.btn_catbox_settings,
+            onClick = {
+                isCatboxInputDialog = true
             },
         )
         HorizontalDivider(thickness = 1.dp)
@@ -137,6 +146,16 @@ fun SettingsScreen(
                 viewModel.updateUserClientId(resultValue)
             },
             closeFun = { isImgurInputDialog = false }
+        )
+    }else if(isCatboxInputDialog){
+        TextInputDialog(
+            titleRes = R.string.input_catbox_user_hash,
+            labelRes = R.string.label_catbox_user_hash,
+            initialValue = uiState.catboxUserHash,
+            onOk = { resultValue ->
+                viewModel.updateCatboxUserHash(resultValue)
+            },
+            closeFun = { isCatboxInputDialog = false }
         )
     }
 }

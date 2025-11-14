@@ -15,7 +15,16 @@ interface CatboxApi {
     @POST("user/api.php")
     suspend fun postImage(
         @Part reqtype: MultipartBody.Part,
+        @Part userhash: MultipartBody.Part,
         @Part image: MultipartBody.Part,
+    ): String
+
+    @Multipart
+    @POST("user/api.php")
+    suspend fun deleteImages(
+        @Part reqtype: MultipartBody.Part,
+        @Part userhash: MultipartBody.Part,
+        @Part files: MultipartBody.Part,
     ): String
 }
 

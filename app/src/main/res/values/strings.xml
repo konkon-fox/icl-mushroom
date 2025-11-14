@@ -6,6 +6,7 @@
     <string name="btn_upload_history">アップロード履歴</string>
     <string name="btn_settings">設定</string>
     <string name="btn_imgur_settings">Imgur ClientID登録 (※高度な設定)</string>
+    <string name="btn_catbox_settings">Catbox userhash登録 (※高度な設定)</string>
     <string name="btn_info">情報</string>
     <string name="btn_cancel">キャンセル</string>
     <string name="btn_ok">OK</string>
@@ -13,7 +14,7 @@
     <string name="btn_back">戻る</string>
     <string name="btn_delete_from_server">画像をサーバーから削除</string>
     <string name="btn_delete_from_histories">画像を履歴から削除</string>
-    <string name="btn_delete_imgur_from_histories">サーバーから削除済みのImgur画像を履歴から削除</string>
+    <string name="btn_delete_deleted_items_from_histories">サーバーから削除済みの画像を履歴から削除</string>
     <string name="btn_delete_litterbox_from_histories">期限切れのLitterbox画像を履歴から削除</string>
     <string name="btn_delete_all_from_histories">全ての画像を履歴から削除</string>
     <string name="btn_login_to_imgur">Imgurにログイン</string>
@@ -36,6 +37,7 @@
     <string name="dialog_body_version_info">Version: %s</string>
     <string name="dialog_body_imgur_api_error">アップロードに失敗しました。\nAPI制限中か、ClientIDが不正な値です。</string>
     <string name="dialog_body_delete_imgur_from_histories">サーバーから削除済みのImgur画像を履歴から削除しますか？</string>
+    <string name="dialog_body_delete_deleted_from_histories">サーバーから削除済みの画像を履歴から削除しますか？</string>
     <string name="dialog_body_delete_litterbox_from_histories">期限切れのLitterbox画像を履歴から削除しますか？</string>
     <string name="dialog_body_delete_all_from_histories">全ての画像を履歴から削除しますか？</string>
     <string name="dialog_body_imgur_login">Imgurへのログインに成功しました。</string>
@@ -54,6 +56,8 @@
     <string name="toggle_use_imgur_account">Imgurアカウントを使用</string>
     <string name="input_imgur_client_id">Imgur ClientID を入力</string>
     <string name="label_imgur_client_id">Imgur ClientID</string>
+    <string name="input_catbox_user_hash">Catboxのuserhashを入力</string>
+    <string name="label_catbox_user_hash">Catboxのuserhash</string>
     <string name="tos">利用規約</string>
     <string name="please_comply_with">を遵守してください。</string>
     <string name="url_imgur_tos">https://imgur.com/tos</string>

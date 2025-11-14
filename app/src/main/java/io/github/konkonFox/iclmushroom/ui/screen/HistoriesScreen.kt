@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -195,6 +196,8 @@ private fun Item(
             ""
         }
         item.link.replace(Regex("\\.[^.]+?$"), "m.jpeg") + unixParam
+    } else if (item.isDeleted) {
+        item.link + "?$nowTime"
     } else {
         item.link
     }
@@ -272,14 +275,24 @@ private fun Item(
     if (!uiState.nowLoadingOption.isOpen && isDialogOpen) {
         DeleteDialog(
             deleteFromServer = {
-                viewModel.deleteImgurItem(item)
+                viewModel.deleteServerItem(item)
                 isDialogOpen = false
             },
             deleteFromHistories = {
                 viewModel.deleteLocalItem(item)
                 isDialogOpen = false
             },
-            isDeletableFromServer = item.uploader == UploaderName.Imgur.name && item.deleteHash != null && item.isDeleted == false,
+            isDeletableFromServer = if (item.isDeleted) {
+                false
+            } else if (item.uploader == UploaderName.Imgur.name && item.deleteHash != null) {
+                true
+            } else if (
+                item.uploader == UploaderName.Catbox.name && item.fileName != null && item.useCatboxUserHash
+            ) {
+                true
+            } else {
+                false
+            },
             closeFun = { isDialogOpen = false },
         )
     }
@@ -300,17 +313,17 @@ fun DropdownMenu(viewModel: BaseIclViewModel) {
             onDismissRequest = { expanded = false }
         ) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.btn_delete_imgur_from_histories)) },
+                text = { Text(stringResource(R.string.btn_delete_deleted_items_from_histories)) },
                 onClick = {
                     viewModel.openConfirmDialog(
                         DialogOptions(
                             isOpen = true,
                             title = R.string.dialog_title_delete_confirm,
-                            body = R.string.dialog_body_delete_imgur_from_histories,
+                            body = R.string.dialog_body_delete_deleted_from_histories,
                             dynamicBody = null,
                             onOk = {
                                 expanded = false
-                                viewModel.deleteDeletedImgurItems()
+                                viewModel.deleteDeletedItems()
                             },
                             closeFun = {
                                 expanded = false
@@ -318,7 +331,8 @@ fun DropdownMenu(viewModel: BaseIclViewModel) {
                             }
                         )
                     )
-                }
+                },
+                contentPadding = PaddingValues(vertical = 8.dp, horizontal = 16.dp)
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.btn_delete_litterbox_from_histories)) },
@@ -339,7 +353,8 @@ fun DropdownMenu(viewModel: BaseIclViewModel) {
                             }
                         )
                     )
-                }
+                },
+                contentPadding = PaddingValues(vertical = 8.dp, horizontal = 16.dp)
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.btn_delete_all_from_histories)) },
@@ -360,7 +375,8 @@ fun DropdownMenu(viewModel: BaseIclViewModel) {
                             }
                         )
                     )
-                }
+                },
+                contentPadding = PaddingValues(vertical = 8.dp, horizontal = 16.dp)
             )
         }
     }
