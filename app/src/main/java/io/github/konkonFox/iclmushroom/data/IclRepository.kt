@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import io.github.konkonFox.iclmushroom.ImageLauncherType
 import io.github.konkonFox.iclmushroom.LocalClickOption
 import io.github.konkonFox.iclmushroom.UploaderName
 import io.github.konkonFox.iclmushroom.model.ImgurCreditsResponse
@@ -41,6 +42,8 @@ class IclRepository(
         val IMGUR_ACCOUNT_NAME = stringPreferencesKey("imgur_account_name")
         val IMGUR_EXPIRE_AT = longPreferencesKey("imgur_expire_at")
         val USE_IMGUR_ACCOUNT = booleanPreferencesKey("use_imgur_account")
+        val IMAGE_LAUNCHER_TYPE = stringPreferencesKey("image_launcher_type")
+        val CATBOX_USER_HASH = stringPreferencesKey("catbox_user_hash")
         const val TAG = "IclRepository"
     }
 
@@ -170,6 +173,37 @@ class IclRepository(
             preferences[USE_IMGUR_ACCOUNT] == true // デフォルト値
         }
 
+    // image launcher type の取得
+    val imageLauncherType: Flow<ImageLauncherType> = dataStore.data
+        .catch {
+            if (it is IOException) {
+                Log.e(TAG, "Error reading preferences.", it)
+                emit(emptyPreferences())
+            } else {
+                throw it
+            }
+        }
+        .map { preferences ->
+            val name =
+                preferences[IMAGE_LAUNCHER_TYPE] ?: ImageLauncherType.PhotoPicker.name // デフォルト値
+            ImageLauncherType.valueOf(name)
+        }
+
+
+    // catbox_user_hash の取得
+    val catboxUserHash: Flow<String> = dataStore.data
+        .catch {
+            if (it is IOException) {
+                Log.e(TAG, "Error reading preferences.", it)
+                emit(emptyPreferences())
+            } else {
+                throw it
+            }
+        }
+        .map { preferences ->
+            preferences[CATBOX_USER_HASH] ?: "" // デフォルト値
+        }
+
     // selected_uploader の保存
     suspend fun updateSelectedUploader(uploader: UploaderName) {
         dataStore.edit { preferences ->
@@ -230,6 +264,21 @@ class IclRepository(
     suspend fun updateUseImgurAccount(checked: Boolean) {
         dataStore.edit { preferences ->
             preferences[USE_IMGUR_ACCOUNT] = checked
+        }
+    }
+
+
+    // image launcher typeの保存
+    suspend fun updateImageLauncherType(launcherType: ImageLauncherType) {
+        dataStore.edit { preferences ->
+            preferences[IMAGE_LAUNCHER_TYPE] = launcherType.name
+        }
+    }
+
+    // catbox_user_hash の保存
+    suspend fun updateCatboxUserHash(hash: String) {
+        dataStore.edit { preferences ->
+            preferences[CATBOX_USER_HASH] = hash
         }
     }
 
@@ -325,6 +374,8 @@ class IclRepository(
                         isVideo = isVideo,
                         imgurHash = response.data.id,
                         useImgurAccount = isUsingImgurAccount,
+                        fileName = response.data.link.substringAfterLast("/"),
+                        useCatboxUserHash = false
                     )
                 )
             } catch (e: HttpException) {
@@ -343,10 +394,12 @@ class IclRepository(
         }
     }
 
+
     // catboxにアップロード
     private suspend fun uploadImageToCatbox(mediaFiles: List<MediaFile>): Result<List<LocalItem>> {
         val localItems = mutableListOf<LocalItem>()
         val uploader = selectedUploader.first()
+        val userHash: String = catboxUserHash.first();
 
         mediaFiles.forEach { mediaFile ->
             val (isVideo, file) = mediaFile
@@ -355,10 +408,12 @@ class IclRepository(
                     URLConnection.guessContentTypeFromName(file.name) ?: "application/octet-stream"
                 val requestFile = file.asRequestBody(mimeType.toMediaType())
                 val reqTypePart = MultipartBody.Part.createFormData("reqtype", "fileupload")
+                val userHashPart = MultipartBody.Part.createFormData("userhash", userHash)
                 val imagePart =
                     MultipartBody.Part.createFormData("fileToUpload", file.name, requestFile)
                 val url = CatboxApiService.api.postImage(
                     reqtype = reqTypePart,
+                    userhash = userHashPart,
                     image = imagePart
                 )
                 localItems.add(
@@ -372,6 +427,8 @@ class IclRepository(
                         isVideo = isVideo,
                         imgurHash = null,
                         useImgurAccount = false,
+                        fileName = url.substringAfterLast("/"),
+                        useCatboxUserHash = userHash.isNotEmpty()
                     )
                 )
             } catch (e: HttpException) {
@@ -426,6 +483,8 @@ class IclRepository(
                         isVideo = isVideo,
                         imgurHash = null,
                         useImgurAccount = false,
+                        fileName = url.substringAfterLast("/"),
+                        useCatboxUserHash = false
                     )
                 )
             } catch (e: HttpException) {
@@ -456,6 +515,31 @@ class IclRepository(
                 hash = hash,
             )
             return response.success
+        } catch (e: HttpException) {
+            Log.e(
+                "IclRepository",
+                "Delete failed for : ${e.response()?.errorBody()?.string()}"
+            )
+            return false
+        } catch (e: Exception) {
+            Log.e("IclRepository", "Delete failed for : ${e.message}")
+            return false
+        }
+    }
+
+    // catboxから削除
+    suspend fun deleteCatboxItem(item: LocalItem): Boolean {
+        val userHash: String = catboxUserHash.first()
+        try {
+            val reqTypePart = MultipartBody.Part.createFormData("reqtype", "deletefiles")
+            val userHashPart = MultipartBody.Part.createFormData("userhash", userHash)
+            val filesPart = MultipartBody.Part.createFormData("files", item.fileName.toString())
+            val response = CatboxApiService.api.deleteImages(
+                reqtype = reqTypePart,
+                userhash = userHashPart,
+                files = filesPart,
+            )
+            return true
         } catch (e: HttpException) {
             Log.e(
                 "IclRepository",

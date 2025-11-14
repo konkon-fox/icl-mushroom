@@ -20,4 +20,7 @@ data class LocalItem(
     // 3
     val imgurHash: String? = null,
     val useImgurAccount: Boolean = false,
+    // 4
+    val fileName: String? = null,
+    val useCatboxUserHash: Boolean = false,
 )
